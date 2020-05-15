@@ -62,13 +62,13 @@
 /* NDK BSD support */
 #include <sys/socket.h>
 
+#include <driverlib/sysctl.h>
+
 #include <file.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
-
-#include <driverlib/sysctl.h>
 
 /* Graphiclib Header file */
 #include <grlib/grlib.h>
