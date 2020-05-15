@@ -74,7 +74,7 @@
 
 /* Global PMX42 System data */
 extern SYSDATA g_sysData;
-extern SYSCONFIG g_sysConfig;
+//extern SYSCONFIG g_sysConfig;
 
 /* Prototypes */
 void netOpenHook(void);
