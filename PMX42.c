@@ -1,0 +1,423 @@
+/*
+ * Copyright (c) 2014, Texas Instruments Incorporated
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * *  Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * *  Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * *  Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ *    ======== tcpEcho.c ========
+ *    Contains BSD sockets code.
+ */
+
+/* XDCtools Header files */
+#include <xdc/std.h>
+#include <xdc/cfg/global.h>
+#include <xdc/runtime/System.h>
+#include <xdc/runtime/Error.h>
+#include <xdc/runtime/Gate.h>
+
+/* BIOS Header files */
+#include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Mailbox.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Swi.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/knl/Semaphore.h>
+#include <ti/sysbios/family/arm/m3/Hwi.h>
+//#include <ti/sysbios/fatfs/ff.h>
+
+/* TI-RTOS Driver files */
+#include <ti/drivers/GPIO.h>
+#include <ti/drivers/SDSPI.h>
+#include <ti/drivers/I2C.h>
+#include <ti/drivers/UART.h>
+
+/* NDK BSD support */
+#include <sys/socket.h>
+
+#include <file.h>
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#include <stdbool.h>
+
+#include <driverlib/sysctl.h>
+
+/* Graphiclib Header file */
+#include <grlib/grlib.h>
+#include "drivers/fema128x64.h"
+
+/* PMX42 Board Header file */
+#include "Board.h"
+#include "PMX42.h"
+#include "AD7793.h"
+#include "DisplayTask.h"
+
+/* Debounce time for buttons */
+#define DEBOUNCE_TIME       30
+
+/* Global context for drawing */
+tContext g_context;
+
+/* Handles created dynamically */
+Mailbox_Handle g_mailboxDisplay = NULL;
+Mailbox_Handle mailboxCommand = NULL;
+
+I2C_Handle g_handleI2C3 = NULL;
+
+SYSDATA g_sysData;
+
+/* External Data Items */
+
+extern bool s_isFahrenheit;
+
+/* Static Function Prototypes */
+
+void gpioButtonHwi(unsigned int index);
+
+//*****************************************************************************
+// Main Entry Point
+//*****************************************************************************
+
+int main(void)
+{
+	Task_Params taskParams;
+    Mailbox_Params mboxParams;
+    Error_Block eb;
+
+    /* default GUID & MAC values */
+    memset(g_sysData.ui8SerialNumber, 0xFF, 16);
+    memset(g_sysData.ui8MAC, 0xFF, 6);
+
+    /* Call board init functions */
+    Board_initGeneral();
+    Board_initGPIO();
+    Board_initEMAC();
+    Board_initI2C();
+    // Board_initSDSPI();
+    Board_initSPI();
+    Board_initUART();
+    // Board_initUSB(Board_USBDEVICE);
+    // Board_initUSBMSCHFatFs();
+    // Board_initWatchdog();
+    // Board_initWiFi();
+
+    /* Initialize the OLED display device driver */
+    FEMA128x64Init();
+    /* Initialize the graphics context */
+    GrContextInit(&g_context, &g_FEMA128x64);
+
+    /* Enable the LED's during startup up */
+    GPIO_write(Board_STAT_LED1, Board_LED_ON);
+    GPIO_write(Board_STAT_LED2, Board_LED_OFF);
+
+    /* SLOT 3 : Deassert RS-422 DE & RE pins */
+    GPIO_write(Board_SLOT3_GPIO_DE, PIN_LOW);
+    GPIO_write(Board_SLOT3_GPIO_RE, PIN_HIGH);
+
+    /* Setup the callback Hwi handler for each button */
+    GPIO_setCallback(Board_BTN_SW1, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_SW2, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_SW3, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_SW4, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_SW5, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_SW6, gpioButtonHwi);
+
+    /* Create command task mailbox */
+    Error_init(&eb);
+    Mailbox_Params_init(&mboxParams);
+    mailboxCommand = Mailbox_create(sizeof(CommandMessage), 10, &mboxParams, &eb);
+    if (mailboxCommand == NULL) {
+        System_abort("Mailbox create failed\nAborting...");
+    }
+
+    /* Create display task mailbox */
+    Error_init(&eb);
+    Mailbox_Params_init(&mboxParams);
+    g_mailboxDisplay = Mailbox_create(sizeof(DisplayMessage), 10, &mboxParams, &eb);
+    if (g_mailboxDisplay == NULL) {
+        System_abort("Mailbox create failed\nAborting...");
+    }
+
+    /* Create task with priority 15 */
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 2048;
+    taskParams.priority  = 15;
+    Task_create((Task_FuncPtr)CommandTaskFxn, &taskParams, &eb);
+
+    System_printf("Starting PMX42 execution.\n");
+    System_flush();
+
+    /* Enable keypad button interrupts */
+    GPIO_enableInt(Board_BTN_SW1);
+    GPIO_enableInt(Board_BTN_SW2);
+    GPIO_enableInt(Board_BTN_SW3);
+    GPIO_enableInt(Board_BTN_SW4);
+    GPIO_enableInt(Board_BTN_SW5);
+    GPIO_enableInt(Board_BTN_SW6);
+
+    /* Start BIOS */
+    BIOS_start();
+
+    return (0);
+}
+
+//*****************************************************************************
+// This function reads the unique 128-serial number and 48-bit MAC address
+// via I2C from the AT24MAC402 serial EPROM.
+//*****************************************************************************
+
+int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
+{
+    bool            ret;
+    uint8_t         txByte;
+    I2C_Handle      handle;
+    I2C_Params      params;
+    I2C_Transaction i2cTransaction;
+
+    /* default is all FF's  in case read fails*/
+    memset(ui8SerialNumber, 0xFF, 16);
+    memset(ui8MAC, 0xFF, 6);
+
+    I2C_Params_init(&params);
+    params.transferCallbackFxn = NULL;
+    params.transferMode = I2C_MODE_BLOCKING;
+    params.bitRate = I2C_100kHz;
+
+    handle = I2C_open(Board_I2C_AT24MAC402, &params);
+
+    if (!handle) {
+        System_printf("I2C did not open\n");
+        System_flush();
+        return 0;
+    }
+
+    /* Note the Upper bit of the word address must be set
+     * in order to read the serial number. Thus 80H would
+     * set the starting address to zero prior to reading
+     * this sixteen bytes of serial number data.
+     */
+
+    txByte = 0x80;
+
+    i2cTransaction.slaveAddress = AT24MAC_EPROM_EXT_ADDR;
+    i2cTransaction.writeBuf     = &txByte;
+    i2cTransaction.writeCount   = 1;
+    i2cTransaction.readBuf      = ui8SerialNumber;
+    i2cTransaction.readCount    = 16;
+
+    ret = I2C_transfer(handle, &i2cTransaction);
+
+    if (!ret)
+    {
+        System_printf("Unsuccessful I2C transfer\n");
+        System_flush();
+    }
+
+    /* Now read the 6-byte 48-bit MAC at address 0x9A. The EUI-48 address
+     * contains six or eight bytes. The first three bytes of the  UI read-only
+     * address field are called the Organizationally Unique Identifier (OUI)
+     * and the IEEE Registration Authority has assigned FCC23Dh as the Atmel OUI.
+     */
+
+    txByte = 0x9A;
+
+    i2cTransaction.slaveAddress = AT24MAC_EPROM_EXT_ADDR;
+    i2cTransaction.writeBuf     = &txByte;
+    i2cTransaction.writeCount   = 1;
+    i2cTransaction.readBuf      = ui8MAC;
+    i2cTransaction.readCount    = 6;
+
+    ret = I2C_transfer(handle, &i2cTransaction);
+
+    if (!ret)
+    {
+        System_printf("Unsuccessful I2C transfer\n");
+        System_flush();
+    }
+
+    I2C_close(handle);
+
+    return ret;
+}
+
+//*****************************************************************************
+//
+//
+//*****************************************************************************
+
+Void CommandTaskFxn(UArg arg0, UArg arg1)
+{
+    Error_Block eb;
+	Task_Params taskParams;
+    CommandMessage msgCmd;
+    DisplayMessage msgDisp;
+
+    /* Read the globally unique serial number from EPROM. We are also
+     * reading the 6-byte MAC address from the AT24MAC serial EPROM.
+     */
+    if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC))
+    {
+        System_printf("Read Serial Number Failed!\n");
+        System_flush();
+    }
+
+    /* Initialize the RTD card in slot 1 */
+    AD7793_Init();
+
+    /*
+     * Create the display task
+     */
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 2048;
+    taskParams.priority  = 10;
+    Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
+
+    /*
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 1024;
+    taskParams.priority  = 12;
+    Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
+     */
+
+    /* Now begin the main program command task processing loop */
+
+    while (true)
+    {
+    	/* Wait for a message up to 1 second */
+        if (!Mailbox_pend(mailboxCommand, &msgCmd, 500))
+        {
+        	/* No message, blink the LED */
+    		GPIO_toggle(Board_STAT_LED1);
+    		continue;
+        }
+
+        if (msgCmd.command == BUTTONPRESS)
+        {
+            bool buttonValid = true;
+            unsigned int index = msgCmd.ui32Data;
+
+            switch(msgCmd.ui32Data)
+            {
+            case Board_BTN_SW1:
+                msgDisp.dispCommand = SCREEN_NEXT;
+                Mailbox_post(g_mailboxDisplay, &msgDisp, BIOS_NO_WAIT);
+                break;
+
+            case Board_BTN_SW2:
+                msgDisp.dispCommand = SCREEN_PREV;
+                Mailbox_post(g_mailboxDisplay, &msgDisp, BIOS_NO_WAIT);
+                break;
+
+            case Board_BTN_SW3:
+                /* Toggle temp display mode */
+                if (s_isFahrenheit)
+                    s_isFahrenheit = false;
+                else
+                    s_isFahrenheit = true;
+                /* Update the screen */
+                msgDisp.dispCommand = SCREEN_REFRESH;
+                Mailbox_post(g_mailboxDisplay, &msgDisp, BIOS_NO_WAIT);
+                break;
+
+            case Board_BTN_SW4:
+                break;
+
+            case Board_BTN_SW5:
+                //GPIO_toggle(Board_SLOT2_RELAY1);
+                break;
+
+            case Board_BTN_SW6:
+               // GPIO_toggle(Board_SLOT2_RELAY2);
+                break;
+
+            default:
+                buttonValid = false;
+                break;
+            }
+
+            if (buttonValid)
+            {
+                uint32_t i;
+
+                /* Some debounce time for the button */
+                Task_sleep(DEBOUNCE_TIME);
+
+                /* Wait for button to release, then re-enable interrupt */
+                for (i=0; i < 100; i++)
+                {
+                    if (GPIO_read(index))
+                        break;
+                    Task_sleep(10);
+                }
+
+                Task_sleep(DEBOUNCE_TIME);
+
+                /* Re-enable the interrupt for the button pressed */
+                GPIO_enableInt(index);
+            }
+        }
+    }
+}
+
+//*****************************************************************************
+// HWI Callback function for front panel push button interrupts.
+//*****************************************************************************
+
+void gpioButtonHwi(unsigned int index)
+{
+	uint32_t btn;
+    CommandMessage msg;
+
+	/* GPIO pin interrupt occurred, read current button state mask */
+    btn = GPIO_read(index);
+
+    GPIO_clearInt(index);
+
+    if (btn)
+    {
+        /* Disable interrupt for now, the command task will
+         * re-enable this after it processes the button press
+         * message and debounces the button press.
+         */
+        GPIO_disableInt(index);
+
+        msg.command  = BUTTONPRESS;
+        msg.ui32Data = index;
+        Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
+    }
+
+}
+
+// End-Of-File
