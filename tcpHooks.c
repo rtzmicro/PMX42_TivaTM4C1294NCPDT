@@ -59,6 +59,7 @@
 
 /* PMX42 Board Header file */
 #include "Board.h"
+#include "PMX42.h"
 
 #define TCPPACKETSIZE 256
 #define NUMTCPWORKERS 3
@@ -71,15 +72,23 @@
 #define TCPHANDLERSTACK 1024
 #endif
 
+/* Global PMX42 System data */
+extern SYSDATA g_sysData;
+extern SYSCONFIG g_sysConfig;
+
 /* Prototypes */
+void netOpenHook(void);
+void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
 Void tcpHandler(UArg arg0, UArg arg1);
 Void tcpWorker(UArg arg0, UArg arg1);
-void netOpenHook(void);
 
-/*
- *  ======== netOpenHook ========
- *  NDK network open hook used to initialize IPv6
- */
+/* External Function Prototypes */
+extern void NtIPN2Str(uint32_t IPAddr, char *str);
+
+//*****************************************************************************
+// NDK network open hook used to initialize IPv6
+//*****************************************************************************
+
 void netOpenHook()
 {
     Task_Handle taskHandle;
@@ -105,10 +114,24 @@ void netOpenHook()
     System_flush();
 }
 
-/*
- *  ======== tcpHandler ========
- *  Creates new Task to handle new TCP connections.
- */
+// This handler is called when the DHCP client is assigned an
+// address from a DHCP server. We store this in our runtime data
+// structure for use later.
+
+void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
+{
+    if (fAdd)
+        NtIPN2Str(IPAddr, g_sysData.ipAddr);
+    else
+        NtIPN2Str(0, g_sysData.ipAddr);
+
+    //System_printf("netIPUpdate() dhcp->%s\n", g_sysData.ipAddr);
+}
+
+//*****************************************************************************
+// LISTENER CREATES TRANSPORT STATE STREAMING WORKER TASK FOR NEW CONNECTIONS.
+//*****************************************************************************
+
 Void tcpHandler(UArg arg0, UArg arg1)
 {
     int                status;
@@ -182,11 +205,10 @@ shutdown:
     }
 }
 
-/*
- *  ======== tcpWorker ========
- *  Task to handle TCP connection. Can be multiple Tasks running
- *  this function.
- */
+//*****************************************************************************
+// ECHOS DATA BACK TO CLIENT
+//*****************************************************************************
+
 Void tcpWorker(UArg arg0, UArg arg1)
 {
     int  clientfd = (int)arg0;

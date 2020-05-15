@@ -93,6 +93,7 @@ Mailbox_Handle mailboxCommand = NULL;
 I2C_Handle g_handleI2C3 = NULL;
 
 SYSDATA g_sysData;
+SYSCONFIG g_sysConfig;
 
 /* External Data Items */
 
@@ -119,7 +120,6 @@ int main(void)
     /* Call board init functions */
     Board_initGeneral();
     Board_initGPIO();
-    Board_initEMAC();
     Board_initI2C();
     // Board_initSDSPI();
     Board_initSPI();
@@ -188,6 +188,19 @@ int main(void)
     BIOS_start();
 
     return (0);
+}
+
+//*****************************************************************************
+// This is a hook into the NDK stack to allow delaying execution of the NDK
+// stack task until after we load the MAC address from the AT24MAC serial
+// EPROM part. This hook blocks on a semaphore until after we're able to call
+// Board_initEMAC() in the CommandTaskFxn() below. This mechanism allows us
+// to delay execution until we load the MAC from EPROM.
+//*****************************************************************************
+
+void NDKStackBeginHook(void)
+{
+    Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
 }
 
 //*****************************************************************************
@@ -281,7 +294,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     CommandMessage msgCmd;
     DisplayMessage msgDisp;
 
-    /* Read the globally unique serial number from EPROM. We are also
+    /* Step 1: Read the globally unique serial number from EPROM. We are also
      * reading the 6-byte MAC address from the AT24MAC serial EPROM.
      */
     if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC))
@@ -289,6 +302,13 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
         System_printf("Read Serial Number Failed!\n");
         System_flush();
     }
+
+    /* Step 2 - Don't initialize EMAC layer until after reading MAC address above! */
+    Board_initEMAC();
+
+    /* Step 3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
+    Semaphore_post(g_semaNDKStartup);
+
 
     /* Initialize the RTD card in slot 1 */
     AD7793_Init();
