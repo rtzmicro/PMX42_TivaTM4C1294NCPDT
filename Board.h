@@ -52,6 +52,7 @@ extern "C" {
 #define Board_initWatchdog          PMX42_initWatchdog
 #define Board_initWiFi              PMX42_initWiFi
 
+/* On board switches and LED's */
 #define Board_LED_ON                PMX42_LED_ON
 #define Board_LED_OFF               PMX42_LED_OFF
 #define Board_STAT_LED1             PMX42_STAT_LED1
@@ -63,18 +64,27 @@ extern "C" {
 #define Board_BTN_SW5               PMX42_BTN_SW5
 #define Board_BTN_SW6               PMX42_BTN_SW6
 
+/* Each slot has a dedicated I2C port */
 #define Board_I2C_SLOT1             PMX42_I2C0
 #define Board_I2C_SLOT2             PMX42_I2C1
 #define Board_I2C_SLOT3             PMX42_I2C2
 #define Board_I2C_SLOT4             PMX42_I2C3
+
+/* I2C3 is shared with the AT24MAC402 serial number/MAC
+ * and the MCP79410T RTC parts.
+ */
 #define Board_I2C_AT24MAC402        PMX42_I2C3
+#define Board_I2C_MCP79410T         PMX42_I2C3
 
 #define Board_PWM0                  PMX42_PWM0
 #define Board_PWM1                  PMX42_PWM0
 
-#define Board_SDSPI0                PMX42_SDSPI0
+/* SPI-1 dedicated to SD drive */
 #define Board_SDSPI1                PMX42_SDSPI1
 
+/* Slots 1 and 2 are driven by SPI-2
+ * Slots 3 and 4 are driven by SPI-3
+ */
 #define Board_SLOT12_SPI            PMX42_SPI2
 #define Board_SLOT34_SPI            PMX42_SPI3
 #define Board_SPI_CC3100            PMX42_SPI2
@@ -89,7 +99,10 @@ extern "C" {
 #define Board_UART5                 PMX42_UART5
 #define Board_UART7                 PMX42_UART7
 
-/* I/O Option Card Specific Port Defines */
+/**** I/O Option Card Specific Port Defines ****/
+
+#define Board_SLOT1_SS              PMX42_SLOT1_GPIO_PD2
+#define Board_SLOT2_SS              PMX42_SLOT2_GPIO_PM2
 
 #define Board_SLOT1_AD7793_CS1		PMX42_SLOT1_GPIO_PD2
 #define Board_SLOT1_AD7793_CS2		PMX42_SLOT1_GPIO_PM4

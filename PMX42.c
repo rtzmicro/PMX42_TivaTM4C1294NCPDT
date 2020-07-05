@@ -90,10 +90,8 @@ tContext g_context;
 Mailbox_Handle g_mailboxDisplay = NULL;
 Mailbox_Handle mailboxCommand = NULL;
 
-I2C_Handle g_handleI2C3 = NULL;
-
-SYSDATA g_sysData;
-SYSCONFIG g_sysConfig;
+SYSDATA     g_sys;
+SYSCONFIG   g_cfg;
 
 /* External Data Items */
 
@@ -114,8 +112,8 @@ int main(void)
     Error_Block eb;
 
     /* default GUID & MAC values */
-    memset(g_sysData.ui8SerialNumber, 0xFF, 16);
-    memset(g_sysData.ui8MAC, 0xFF, 6);
+    memset(g_sys.ui8SerialNumber, 0xFF, 16);
+    memset(g_sys.ui8MAC, 0xFF, 6);
 
     /* Call board init functions */
     Board_initGeneral();
@@ -287,6 +285,128 @@ int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
 //
 //*****************************************************************************
 
+bool Init_Peripherals(void)
+{
+    SPI_Params  spiParams;
+
+    /*
+     * Slots 1 & 2 share quad-speed SPI-2 bu
+     */
+
+    SPI_Params_init(&spiParams);
+
+    spiParams.mode            = SPI_MASTER;
+    spiParams.transferMode    = SPI_MODE_BLOCKING;
+    spiParams.transferTimeout = 1000;
+    spiParams.frameFormat     = SPI_POL1_PHA1;
+    //spiParams.bitRate         = 1000000;            /* 1 Mhz for now */
+    spiParams.bitRate         = 100000;             /* 100 kHz */
+    spiParams.dataSize        = 8;
+
+    if ((g_sys.spi12 = SPI_open(Board_SLOT12_SPI, &spiParams)) == NULL)
+    {
+        System_printf("Error: Unable to open SPI2 port\n");
+        System_flush();
+        return false;
+    }
+
+    /*
+     * Slots 3 & 4 share quad-speed SPI-3 bus
+     */
+
+    SPI_Params_init(&spiParams);
+
+    spiParams.mode            = SPI_MASTER;
+    spiParams.transferMode    = SPI_MODE_BLOCKING;
+    spiParams.transferTimeout = 1000;
+    spiParams.frameFormat     = SPI_POL1_PHA1;
+    spiParams.bitRate         = 1000000;            /* 1 Mhz for now */
+    spiParams.dataSize        = 8;
+
+    if ((g_sys.spi34 = SPI_open(Board_SLOT34_SPI, &spiParams)) == NULL)
+    {
+        System_printf("Error: Unable to open SPI2 port\n");
+        System_flush();
+        return false;
+    }
+
+    return true;
+}
+
+//*****************************************************************************
+//
+//
+//*****************************************************************************
+
+bool Init_IO_Cards(void)
+{
+    /*
+     * Create and initialize the AD7799 objects.
+     */
+
+    if ((g_sys.AD7799HandleSlot1 = AD7799_create(g_sys.spi12, Board_SLOT1_SS, NULL)) == NULL)
+    {
+        System_printf("AD7799_create failed\n");
+        return false;
+    }
+
+    if ((g_sys.AD7799HandleSlot2 = AD7799_create(g_sys.spi12, Board_SLOT2_SS, NULL)) == NULL)
+    {
+        System_printf("AD7799_create failed\n");
+        return false;
+    }
+
+    /*
+     * Attempt to reset, initialize & detect presence of I/O cards
+     */
+#if 0
+    AD7799_Reset(g_sys.AD7799HandleSlot1);
+
+    if (AD7799_Init(g_sys.AD7799HandleSlot1) == 0)
+    {
+       System_printf("AD7799_Init() failed\n");
+    }
+    else
+    {
+        /* Set gain to 1 */
+        AD7799_SetGain(g_sys.AD7799HandleSlot1, AD7799_GAIN_1);
+        /* use AIN1(+) - AIN1(-) */
+        AD7799_SetChannel(g_sys.AD7799HandleSlot1, AD7799_CH_AIN1P_AIN1M);
+        /* use AIN2(+) - AIN2(-) */
+        AD7799_SetChannel(g_sys.AD7799HandleSlot1, AD7799_CH_AIN2P_AIN2M);
+        /* Set the reference detect */
+        AD7799_SetReference(g_sys.AD7799HandleSlot1, AD7799_REFDET_ENA);
+    }
+#endif
+
+    AD7799_Reset(g_sys.AD7799HandleSlot2);
+
+    if (AD7799_Init(g_sys.AD7799HandleSlot2) == 0)
+    {
+        System_printf("AD7799_Init() failed\n");
+    }
+    else
+    {
+        /* Set gain to 1 */
+        AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
+        /* use AIN1(+) - AIN1(-) */
+        AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
+        /* use AIN2(+) - AIN2(-) */
+        AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
+        /* Set the reference detect */
+        AD7799_SetReference(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
+    }
+
+    System_flush();
+
+    return true;
+}
+
+//*****************************************************************************
+//
+//
+//*****************************************************************************
+
 Void CommandTaskFxn(UArg arg0, UArg arg1)
 {
     Error_Block eb;
@@ -294,24 +414,26 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     CommandMessage msgCmd;
     DisplayMessage msgDisp;
 
-    /* Step 1: Read the globally unique serial number from EPROM. We are also
+    /* STEP-1: Read the globally unique serial number from EPROM. We are also
      * reading the 6-byte MAC address from the AT24MAC serial EPROM.
      */
-    if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC))
+    if (!ReadGUIDS(g_sys.ui8SerialNumber, g_sys.ui8MAC))
     {
         System_printf("Read Serial Number Failed!\n");
         System_flush();
     }
 
-    /* Step 2 - Don't initialize EMAC layer until after reading MAC address above! */
+    /* STEP-2 - Don't initialize EMAC layer until after reading MAC address above! */
     Board_initEMAC();
 
-    /* Step 3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
+    /* STEP-3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
     Semaphore_post(g_semaNDKStartup);
 
+    /* Open the peripheral ports we plan to use */
+    Init_Peripherals();
 
-    /* Initialize the RTD card in slot 1 */
-    AD7793_Init();
+    /* Initialize any I/O cards in the slots */
+    Init_IO_Cards();
 
     /*
      * Create the display task
@@ -322,14 +444,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     taskParams.stackSize = 2048;
     taskParams.priority  = 10;
     Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
-
-    /*
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 1024;
-    taskParams.priority  = 12;
-    Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
-     */
 
     /* Now begin the main program command task processing loop */
 
@@ -399,6 +513,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
                 {
                     if (GPIO_read(index))
                         break;
+
                     Task_sleep(10);
                 }
 

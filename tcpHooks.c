@@ -73,7 +73,7 @@
 #endif
 
 /* Global PMX42 System data */
-extern SYSDATA g_sysData;
+extern SYSDATA g_sys;
 //extern SYSCONFIG g_sysConfig;
 
 /* Prototypes */
@@ -121,9 +121,9 @@ void netOpenHook()
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
 {
     if (fAdd)
-        NtIPN2Str(IPAddr, g_sysData.ipAddr);
+        NtIPN2Str(IPAddr, g_sys.ipAddr);
     else
-        NtIPN2Str(0, g_sysData.ipAddr);
+        NtIPN2Str(0, g_sys.ipAddr);
 
     //System_printf("netIPUpdate() dhcp->%s\n", g_sysData.ipAddr);
 }

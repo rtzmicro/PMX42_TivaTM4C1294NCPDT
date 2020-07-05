@@ -224,6 +224,36 @@ static uint32_t AD7799_GetRegisterValue(
     return rxData;
 }
 
+
+#if 0
+unsigned long AD7799_GetRegisterValue(unsigned char regAddress, unsigned char size)
+{
+    unsigned char data[5] = {0x03, 0x00, 0x00, 0x00, 0x00};
+    unsigned long receivedData = 0x00;
+    data[1] = AD7799_COMM_READ |  AD7799_COMM_ADDR(regAddress);
+    AD7799_CS_LOW;
+    SPI_Write(data,1);
+    SPI_Read(data,size);
+    AD7799_CS_HIGH;
+    if(size == 1)
+    {
+        receivedData += (data[0] << 0);
+    }
+    if(size == 2)
+    {
+        receivedData += (data[0] << 8);
+        receivedData += (data[1] << 0);
+    }
+    if(size == 3)
+    {
+        receivedData += (data[0] << 16);
+        receivedData += (data[1] << 8);
+        receivedData += (data[2] << 0);
+    }
+    return receivedData;
+}
+#endif
+
 /***************************************************************************//**
  * @brief Writes the value to the register
  *
@@ -282,6 +312,38 @@ static void AD7799_SetRegisterValue(
     SPI_transfer(handle->spiHandle, &transaction);
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);
+}
+
+/***************************************************************************//**
+ * @brief Initializes the AD7799 and checks if the device is present.
+ *
+ * @param None.
+ *
+ * @return status - Result of the initialization procedure.
+ *                  Example: 1 - if initialization was successful (ID is 0x0B).
+ *                           0 - if initialization was unsuccessful.
+*******************************************************************************/
+
+uint8_t AD7799_Init(AD7799_Handle handle)
+{
+    uint32_t reg;
+    uint8_t status = 0x1;
+    IArg key;
+
+    /* Enter the critical section */
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    reg = AD7799_GetRegisterValue(handle, AD7799_REG_ID, 1);
+
+    if ((reg & 0x0F) != AD7799_ID)
+    {
+        status = 0x0;
+    }
+
+    /* Exit the critical section */
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+
+    return status;
 }
 
 /***************************************************************************//**
@@ -344,36 +406,6 @@ uint8_t AD7799_IsReady(AD7799_Handle handle)
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 	
 	return(!rdy);
-}
-
-
-/***************************************************************************//**
- * @brief Initializes the AD7799 and checks if the device is present.
- *
- * @param None.
- *
- * @return status - Result of the initialization procedure.
- *                  Example: 1 - if initialization was successful (ID is 0x0B).
- *                           0 - if initialization was unsuccessful.
-*******************************************************************************/
-
-uint8_t AD7799_Init(AD7799_Handle handle)
-{
-    uint8_t status = 0x1;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
-
-    if ((AD7799_GetRegisterValue(handle, AD7799_REG_ID, 1) & 0x0F) != AD7799_ID)
-    {
-        status = 0x0;
-    }
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
-
-    return status;
 }
 
 /***************************************************************************//**

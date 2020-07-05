@@ -87,7 +87,7 @@ extern tFont *g_psFontWDseg7bold24pt;
 /* Handles created dynamically */
 extern Mailbox_Handle g_mailboxDisplay;
 
-extern SYSDATA g_sysData;
+extern SYSDATA g_sys;
 
 /* Static Module Globals */
 uint32_t s_uScreenNum = 0;
@@ -216,11 +216,11 @@ void DisplayWelcome()
 
     /* Get the serial number string and display it */
 
-    GetHexStr(buf, &g_sysData.ui8SerialNumber[0], 8);
+    GetHexStr(buf, &g_sys.ui8SerialNumber[0], 8);
     GrStringDraw(&g_context, buf, -1, 8, y, 0);
     y += height + spacing;
 
-    GetHexStr(buf, &g_sysData.ui8SerialNumber[8], 8);
+    GetHexStr(buf, &g_sys.ui8SerialNumber[8], 8);
     GrStringDraw(&g_context, buf, -1, 8, y, 0);
     y += height + spacing;
 
@@ -285,12 +285,12 @@ void DrawScreen(uint32_t uScreenNum)
 	//s_adc1 = AD7793_SingleConversion(Board_SLOT1_AD7793_CS1);
 	//s_adc2 = AD7793_SingleConversion(Board_SLOT1_AD7793_CS2);
 
-	s_adc1 = AD7793_ContinuousReadAvg(Board_SLOT2_AD7793_CS1, 12);
-	s_adc2 = AD7793_ContinuousReadAvg(Board_SLOT2_AD7793_CS2, 12);
+	//s_adc1 = AD7793_ContinuousReadAvg(Board_SLOT2_AD7793_CS1, 12);
+	//s_adc2 = AD7793_ContinuousReadAvg(Board_SLOT2_AD7793_CS2, 12);
 
 	/* Convert ADC value to Celcius */
-	float temp1 = AD7793_temperature(s_adc1);
-	float temp2 = AD7793_temperature(s_adc2);
+	float temp1 = 0.0f;   //AD7793_temperature(s_adc1);
+	float temp2 = 0.0f; //AD7793_temperature(s_adc2);
 
 	/* Convert Celcius to Fahrenheit */
 	key = Hwi_disable();

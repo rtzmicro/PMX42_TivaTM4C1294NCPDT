@@ -12,6 +12,9 @@
 #ifndef __PMX42_H
 #define __PMX42_H
 
+#include "AD7799.h"
+
+/* Helper Macros */
 #define ADC_TO_CELCIUS(c)           ( 147.5f - ((75.0f * VREF * (float)c) / 4096.0f) )
 #define CELCIUS_TO_FAHRENHEIT(c)    ( (float)c * 1.8f + 32.0f )
 
@@ -56,9 +59,16 @@ typedef struct _GUID128 {
 
 typedef struct _SYSDATA
 {
-    uint8_t     ui8SerialNumber[16];        /* 128-bit serial number      */
-    uint8_t     ui8MAC[6];                  /* 48-bit MAC from EPROM      */
-    char        ipAddr[32];                 /* IP address from DHCP       */
+    uint8_t         ui8SerialNumber[16];    /* 128-bit serial number      */
+    uint8_t         ui8MAC[6];              /* 48-bit MAC from EPROM      */
+    char            ipAddr[32];             /* IP address from DHCP       */
+    /* global runtime data */
+    SPI_Handle      spi12;                  /* SPI handle for slots 1 & 2 */
+    AD7799_Handle   AD7799HandleSlot1;
+    AD7799_Handle   AD7799HandleSlot2;
+
+    SPI_Handle      spi34;                  /* SPI handle for slots 3 & 4 */
+
 } SYSDATA;
 
 //*****************************************************************************

@@ -65,7 +65,7 @@
 #include "PMX42.h"
 
 /* Global STC-1200 System data */
-extern SYSDATA g_sysData;
+extern SYSDATA g_sys;
 
 #ifndef TI_DRIVERS_UART_DMA
 #define TI_DRIVERS_UART_DMA 0
@@ -241,7 +241,7 @@ const EMAC_Config EMAC_config[] = {
  */
 void PMX42_initEMAC(void)
 {
-    memcpy(macAddress, g_sysData.ui8MAC, 6);
+    memcpy(macAddress, g_sys.ui8MAC, 6);
 
 #if 0
     uint32_t ulUser0, ulUser1;
@@ -323,14 +323,15 @@ GPIO_PinConfig gpioPinConfigs[] = {
 
     /* PMX42_SLOT1 */
     GPIOTiva_PD_2 | GPIO_CFG_OUT_OD_PU | GPIO_CFG_OUT_HIGH,
-    GPIOTiva_PM_4 | GPIO_CFG_OUT_OD_PU | GPIO_CFG_OUT_HIGH,
+    GPIOTiva_PM_4 | GPIO_CFG_OUT_OD_PU | GPIO_CFG_OUT_LOW,
+    GPIOTiva_PM_5 | GPIO_CFG_OUT_OD_PU | GPIO_CFG_OUT_LOW,
+    GPIOTiva_PM_6 | GPIO_CFG_OUT_OD_PU | GPIO_CFG_OUT_LOW,
 
-    /* PMX42_SLOT2_RELAY1 : PF1 */
+    /* PMX42_SLOT2 */
+    GPIOTiva_PM_2 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_HIGH,
     GPIOTiva_PF_1 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
-    /* PMX42_SLOT2_RELAY2 : PF2 */
     GPIOTiva_PF_2 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
-    /* PMX42_SLOT2_GPIO_PM2 : PM2 */
-    GPIOTiva_PM_2 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
+    GPIOTiva_PF_3 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
 
     /* PMX42_SLOT3_GPIO_DE : PL4=RS422 DE */
     GPIOTiva_PL_4 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
@@ -375,14 +376,17 @@ void PMX42_initGPIO(void)
     /* Setup LED GPIO output pins used (PP2 & PP3) */
     GPIOPinTypeGPIOOutput(GPIO_PORTP_BASE, GPIO_PIN_2 | GPIO_PIN_3);
 
-    /* Setup SLOT-1 : SSI2 slave select pins for ADC7793 RDT card */
-    GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_2);		/* SLOT1: PD2 (SS_ADC1) */
-    GPIOPinTypeGPIOOutput(GPIO_PORTM_BASE, GPIO_PIN_4);		/* SLOT1: PM4 (SS_ADC2) */
+    /* Setup SLOT-1 : SSI2 slave select pins */
+    GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_2);		/* SLOT1: PD2/SLOT1_SS */
+    GPIOPinTypeGPIOOutput(GPIO_PORTM_BASE, GPIO_PIN_4);		/* SLOT1: PM4/T4CCP0   */
+    GPIOPinTypeGPIOOutput(GPIO_PORTM_BASE, GPIO_PIN_5);     /* SLOT1: PM5/T4CCP1   */
+    GPIOPinTypeGPIOOutput(GPIO_PORTM_BASE, GPIO_PIN_6);     /* SLOT1: PM6/T5CCP0   */
 
     /* Setup SLOT-2 : Enable for GPIOOutputs */
-    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);		/* SLOT2: PF1 */
-    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_2);		/* SLOT2: PF2 */
-    GPIOPinTypeGPIOOutput(GPIO_PORTM_BASE, GPIO_PIN_2);     /* SLOT2: PM2 */
+    GPIOPinTypeGPIOOutput(GPIO_PORTM_BASE, GPIO_PIN_2);     /* SLOT2: PM2/SLOT2_SS */
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);		/* SLOT2: PF1/M0PWM1   */
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_2);		/* SLOT2: PF2/M0PWM2   */
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_3);     /* SLOT2: PF3/M0PWM3   */
 
     /* Setup SLOT-3 : RS-422 DE and RE control pins */
     GPIOPinTypeGPIOOutput(GPIO_PORTL_BASE, GPIO_PIN_4);		/* SLOT3: PL4 (DE) */
