@@ -169,6 +169,7 @@ static uint32_t AD7799_GetRegisterValue(
 {
     uint8_t txBuf[5];
     uint8_t rxBuf[5];
+    uint32_t i;
     uint32_t rxData = 0;
     SPI_Transaction transaction;
 
@@ -176,15 +177,23 @@ static uint32_t AD7799_GetRegisterValue(
     memset(rxBuf, 0, sizeof(rxBuf));
 
     txBuf[0] = AD7799_COMM_READ | AD7799_COMM_ADDR(regAddress);
-
-    transaction.count = size + 1;
-    transaction.txBuf = (Ptr)&txBuf;
-    transaction.rxBuf = (Ptr)&rxBuf;
+    txBuf[1] = regAddress;
 
     /* Assert the chip select low */
     GPIO_write(handle->gpioCS, PIN_LOW);
-    /* Initiate SPI transfer */
-    SPI_transfer(handle->spiHandle, &transaction);
+
+    for (i=0; i < size+1; i++)
+    {
+        transaction.count = 1;
+        transaction.txBuf = (Ptr)&txBuf[i];
+        transaction.rxBuf = (Ptr)&rxBuf[i];
+
+        /* Initiate SPI transfer */
+        SPI_transfer(handle->spiHandle, &transaction);
+
+        //Task_sleep(1);
+    }
+
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);
 
