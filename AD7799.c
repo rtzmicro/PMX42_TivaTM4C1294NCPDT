@@ -174,7 +174,7 @@ static uint32_t AD7799_GetRegisterValue(
 {
     uint8_t txBuf[4];
     uint8_t rxBuf[4];
-    uint32_t i, pin;
+    uint32_t pin;
     uint32_t regval = 0;
     uint32_t busy = 0;
     SPI_Transaction transaction;
@@ -199,25 +199,26 @@ static uint32_t AD7799_GetRegisterValue(
     SPI_transfer(handle->spiHandle, &transaction);
 
     /* Wait for RDY pin to go low */
-
+/*
     do {
         pin = GPIOPinRead(GPIO_PORTD_BASE, GPIO_PIN_0) ? PIN_LOW : PIN_HIGH;
         ++busy;
     } while (pin == PIN_HIGH);
+*/
+    //Task_sleep(1);
 
     /*
      * Now read back any response data
      */
 
-    for (i=0; i < size; i++)
-    {
-        transaction.count = 1;
-        transaction.txBuf = (Ptr)&txBuf[i];
-        transaction.rxBuf = (Ptr)&rxBuf[i];
+    txBuf[0] = 0;
 
-        /* Initiate SPI transfer */
-        SPI_transfer(handle->spiHandle, &transaction);
-    }
+    transaction.count = 1;
+    transaction.txBuf = (Ptr)&txBuf[0];
+    transaction.rxBuf = (Ptr)&rxBuf[0];
+
+    /* Initiate SPI transfer */
+    SPI_transfer(handle->spiHandle, &transaction);
 
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);
