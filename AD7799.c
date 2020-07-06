@@ -68,6 +68,11 @@
 #include <ti/drivers/SPI.h>
 #include <ti/drivers/GPIO.h>
 
+#include "driverlib/gpio.h"
+#include "driverlib/pin_map.h"
+
+#include "inc/hw_memmap.h"
+
 #include "Board.h"
 #include "PMX42.h"
 #include "AD7799.h"             // AD7799 definitions.
@@ -167,22 +172,44 @@ static uint32_t AD7799_GetRegisterValue(
         uint8_t size
         )
 {
-    uint8_t txBuf[5];
-    uint8_t rxBuf[5];
-    uint32_t i;
-    uint32_t rxData = 0;
+    uint8_t txBuf[4];
+    uint8_t rxBuf[4];
+    uint32_t i, pin;
+    uint32_t regval = 0;
+    uint32_t busy = 0;
     SPI_Transaction transaction;
 
     memset(txBuf, 0, sizeof(txBuf));
     memset(rxBuf, 0, sizeof(rxBuf));
 
-    txBuf[0] = AD7799_COMM_READ | AD7799_COMM_ADDR(regAddress);
-    txBuf[1] = regAddress;
-
     /* Assert the chip select low */
     GPIO_write(handle->gpioCS, PIN_LOW);
 
-    for (i=0; i < size+1; i++)
+    /*
+     * Write the command byte and register address
+     */
+
+    txBuf[0] = AD7799_COMM_READ | AD7799_COMM_ADDR(regAddress);
+
+    transaction.count = 1;
+    transaction.txBuf = (Ptr)txBuf;
+    transaction.rxBuf = (Ptr)rxBuf;
+
+    /* Initiate SPI transfer */
+    SPI_transfer(handle->spiHandle, &transaction);
+
+    /* Wait for RDY pin to go low */
+
+    do {
+        pin = GPIOPinRead(GPIO_PORTD_BASE, GPIO_PIN_0) ? PIN_LOW : PIN_HIGH;
+        ++busy;
+    } while (pin == PIN_HIGH);
+
+    /*
+     * Now read back any response data
+     */
+
+    for (i=0; i < size; i++)
     {
         transaction.count = 1;
         transaction.txBuf = (Ptr)&txBuf[i];
@@ -190,8 +217,6 @@ static uint32_t AD7799_GetRegisterValue(
 
         /* Initiate SPI transfer */
         SPI_transfer(handle->spiHandle, &transaction);
-
-        //Task_sleep(1);
     }
 
     /* Release chip select to high */
@@ -199,69 +224,24 @@ static uint32_t AD7799_GetRegisterValue(
 
     /* Extract the data value returned */
 
-    switch (size)
+    if (size == 1)
     {
-        case 1:
-            rxData = (uint32_t)(rxBuf[1]);
-            break;
-
-        case 2:
-            rxData = (uint32_t)((rxBuf[1] << 8) | rxBuf[2]);
-            break;
-
-        case 3:
-            // In most cases, the ADC code is read by a microcontroller in 8-bit
-            // segments and concatenated into a 32-bit data type. If the ADC’s
-            // resolution is less than 32 bits and the output code is signed, the
-            // data will need to be sign-extended into the 32-bit integer data
-            // type to preserve the sign.
-
-#ifdef BIPOLAR_24BIT
-            rxData = (uint32_t)(((((rxBuf[1] & 0x80) ? 0xFF : 0x00)) << 24) |
-                                                  ((rxBuf[1] & 0xFF) << 16) |
-                                                  ((rxBuf[2] & 0xFF) << 8 ) |
-                                                  ((rxBuf[3] & 0xFF) << 0 ));
-#else
-            rxData = (uint32_t)((rxBuf[1] << 16) | (rxBuf[2] << 8) | rxBuf[3]);
-#endif
-            break;
-
-        default:
-            break;
+        regval += (rxBuf[0] << 0);
+    }
+    else if(size == 2)
+    {
+        regval += (rxBuf[0] << 8);
+        regval += (rxBuf[1] << 0);
+    }
+    else if(size == 3)
+    {
+        regval += ((unsigned long)rxBuf[0] << 16);
+        regval += (rxBuf[1] << 8);
+        regval += (rxBuf[2] << 0);
     }
 
-    return rxData;
+    return regval;
 }
-
-
-#if 0
-unsigned long AD7799_GetRegisterValue(unsigned char regAddress, unsigned char size)
-{
-    unsigned char data[5] = {0x03, 0x00, 0x00, 0x00, 0x00};
-    unsigned long receivedData = 0x00;
-    data[1] = AD7799_COMM_READ |  AD7799_COMM_ADDR(regAddress);
-    AD7799_CS_LOW;
-    SPI_Write(data,1);
-    SPI_Read(data,size);
-    AD7799_CS_HIGH;
-    if(size == 1)
-    {
-        receivedData += (data[0] << 0);
-    }
-    if(size == 2)
-    {
-        receivedData += (data[0] << 8);
-        receivedData += (data[1] << 0);
-    }
-    if(size == 3)
-    {
-        receivedData += (data[0] << 16);
-        receivedData += (data[1] << 8);
-        receivedData += (data[2] << 0);
-    }
-    return receivedData;
-}
-#endif
 
 /***************************************************************************//**
  * @brief Writes the value to the register
@@ -294,31 +274,28 @@ static void AD7799_SetRegisterValue(
 
     /* Format the register data value to send */
 
-    switch (size)
+    if (size == 1)
     {
-        case 1:
-            txBuf[1] = (uint8_t)regValue;
-            break;
-
-        case 2:
-            txBuf[1] = (uint8_t)(regValue >> 8);
-            txBuf[2] = (uint8_t)regValue;
-            break;
-
-        case 3:
-            txBuf[1] = (uint8_t)(regValue >> 16);
-            txBuf[2] = (uint8_t)(regValue >> 8);
-            txBuf[3] = (uint8_t)regValue;
-            break;
-
-        default:
-            break;
+        txBuf[1] = (uint8_t)regValue;
+    }
+    else if (size == 2)
+    {
+        txBuf[1] = (uint8_t)(regValue >> 8);
+        txBuf[2] = (uint8_t)regValue;
+    }
+    else if (size == 3)
+    {
+        txBuf[1] = (uint8_t)(regValue >> 16);
+        txBuf[2] = (uint8_t)(regValue >> 8);
+        txBuf[3] = (uint8_t)regValue;
     }
 
     /* Assert the chip select low */
     GPIO_write(handle->gpioCS, PIN_LOW);
+
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
+
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);
 }
@@ -380,8 +357,10 @@ void AD7799_Reset(AD7799_Handle handle)
 
     /* Assert the chip select low  */
     GPIO_write(handle->gpioCS, PIN_LOW);
+
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
+
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);
 
