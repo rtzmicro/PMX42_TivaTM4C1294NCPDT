@@ -299,7 +299,7 @@ bool Init_Peripherals(void)
     spiParams.transferMode    = SPI_MODE_BLOCKING;
     spiParams.transferTimeout = 1000;
     spiParams.frameFormat     = SPI_POL1_PHA1;
-    spiParams.bitRate         = 1000000;            /* 1 Mhz for now */
+    spiParams.bitRate         = 100000;            /* 500 Khz */
     spiParams.dataSize        = 8;
 
     if ((g_sys.spi12 = SPI_open(Board_SLOT12_SPI, &spiParams)) == NULL)
@@ -319,7 +319,7 @@ bool Init_Peripherals(void)
     spiParams.transferMode    = SPI_MODE_BLOCKING;
     spiParams.transferTimeout = 1000;
     spiParams.frameFormat     = SPI_POL1_PHA1;
-    spiParams.bitRate         = 1000000;            /* 1 Mhz for now */
+    spiParams.bitRate         = 100000;             /* 500 Khz */
     spiParams.dataSize        = 8;
 
     if ((g_sys.spi34 = SPI_open(Board_SLOT34_SPI, &spiParams)) == NULL)

@@ -205,15 +205,16 @@ static uint32_t AD7799_GetRegisterValue(
         ++busy;
     } while (pin == PIN_HIGH);
 */
-    //Task_sleep(1);
+    //Task_sleep(10);
 
     /*
      * Now read back any response data
      */
 
-    txBuf[0] = 0;
+    memset(rxBuf, 0, sizeof(rxBuf));
+    //txBuf[0] = 0;
 
-    transaction.count = 1;
+    transaction.count = size;
     transaction.txBuf = (Ptr)&txBuf[0];
     transaction.rxBuf = (Ptr)&rxBuf[0];
 
@@ -369,7 +370,7 @@ void AD7799_Reset(AD7799_Handle handle)
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 
     /* Settling time after chip reset */
-    Task_sleep(10);
+    Task_sleep(100);
 }
 
 /***************************************************************************//**
