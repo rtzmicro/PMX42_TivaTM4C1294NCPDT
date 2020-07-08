@@ -85,12 +85,18 @@ typedef enum PMX42_EMACName {
  *  @brief  Enum of LED names on the PMX42 dev board
  */
 typedef enum PMX42_GPIOName {
+    /* Input IRQ's */
     PMX42_BTN_SW1 = 0,
     PMX42_BTN_SW2,
     PMX42_BTN_SW3,
     PMX42_BTN_SW4,
     PMX42_BTN_SW5,
     PMX42_BTN_SW6,
+    PMX42_SLOT1_IRQ,
+    PMX42_SLOT2_IRQ,
+    PMX42_SLOT3_IRQ,
+    PMX42_SLOT4_IRQ,
+    /* LED outputs */
     PMX42_STAT_LED1,
     PMX42_STAT_LED2,
     /* SLOT-1 */
@@ -104,10 +110,16 @@ typedef enum PMX42_GPIOName {
 	PMX42_SLOT2_GPIO_PF2,
     PMX42_SLOT2_GPIO_PF3,
     /* SLOT-3 */
-	PMX42_SLOT3_GPIO_DE,
-	PMX42_SLOT3_GPIO_RE,
+    PMX42_SLOT3_GPIO_PQ1,
+    /* SLOT-4 */
+    PMX42_SLOT4_GPIO_PM3,
+
     PMX42_GPIOCOUNT
 } PMX42_GPIOName;
+
+
+
+
 
 /*!
  *  @def    PMX42_I2CName

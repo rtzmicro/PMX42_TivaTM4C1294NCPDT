@@ -187,9 +187,10 @@ typedef struct AD7799_Params {
  *  The application should never directly access the fields in the structure.
  */
 typedef struct AD7799_Object {
-    SPI_Handle          spiHandle;      /* SPI handle  */
-    uint32_t            gpioCS;         /* chip select */
-    GateMutex_Struct    gate;           /* gate mutex  */
+    SPI_Handle          spiHandle;      /* SPI handle   */
+    uint32_t            gpioCS;         /* chip select  */
+    uint32_t            gpioRDY;        /* RDY gpio pin */
+    GateMutex_Struct    gate;           /* gate mutex   */
 } AD7799_Object;
 
 /*!
@@ -216,8 +217,11 @@ typedef AD7799_Object *AD7799_Handle;
  *
    @sa     AD7799_destruct()
  */
-AD7799_Handle AD7799_construct(AD7799_Object *obj, SPI_Handle spiHandle,
-                               uint32_t gpioCSIndex, AD7799_Params *params);
+AD7799_Handle AD7799_construct(AD7799_Object *obj,
+                               SPI_Handle spiHandle,
+                               uint32_t gpioCSIndex,
+                               uint32_t gpioRDYIndex,
+                               AD7799_Params *params);
 
 /*!
  *  @brief  Function to initialize a given AD7799 device
@@ -235,7 +239,9 @@ AD7799_Handle AD7799_construct(AD7799_Object *obj, SPI_Handle spiHandle,
  *
    @sa     AD7799_delete()
  */
-AD7799_Handle AD7799_create(SPI_Handle spiHandle, uint32_t gpioCSIndex,
+AD7799_Handle AD7799_create(SPI_Handle spiHandle,
+                            uint32_t gpioCSIndex,
+                            uint32_t gpioRDYIndex,
                             AD7799_Params *params);
 
 /*!

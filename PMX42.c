@@ -137,8 +137,8 @@ int main(void)
     GPIO_write(Board_STAT_LED2, Board_LED_OFF);
 
     /* SLOT 3 : Deassert RS-422 DE & RE pins */
-    GPIO_write(Board_SLOT3_GPIO_DE, PIN_LOW);
-    GPIO_write(Board_SLOT3_GPIO_RE, PIN_HIGH);
+    //GPIO_write(Board_SLOT3_GPIO_DE, PIN_LOW);
+    //GPIO_write(Board_SLOT3_GPIO_RE, PIN_HIGH);
 
     /* Setup the callback Hwi handler for each button */
     GPIO_setCallback(Board_BTN_SW1, gpioButtonHwi);
@@ -290,7 +290,7 @@ bool Init_Peripherals(void)
     SPI_Params  spiParams;
 
     /*
-     * Slots 1 & 2 share quad-speed SPI-2 bu
+     * Slots 1 & 2 share quad-speed SPI-2 bus
      */
 
     SPI_Params_init(&spiParams);
@@ -343,13 +343,13 @@ bool Init_IO_Cards(void)
      * Create and initialize the AD7799 objects.
      */
 
-    if ((g_sys.AD7799HandleSlot1 = AD7799_create(g_sys.spi12, Board_SLOT1_SS, NULL)) == NULL)
+    if ((g_sys.AD7799HandleSlot1 = AD7799_create(g_sys.spi12, Board_SLOT1_SS, Board_SLOT1_RDY, NULL)) == NULL)
     {
         System_printf("AD7799_create failed\n");
         return false;
     }
 
-    if ((g_sys.AD7799HandleSlot2 = AD7799_create(g_sys.spi12, Board_SLOT2_SS, NULL)) == NULL)
+    if ((g_sys.AD7799HandleSlot2 = AD7799_create(g_sys.spi12, Board_SLOT2_SS, Board_SLOT2_RDY, NULL)) == NULL)
     {
         System_printf("AD7799_create failed\n");
         return false;
@@ -428,7 +428,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* STEP-3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
     Semaphore_post(g_semaNDKStartup);
 
-    /* Open the peripheral ports we plan to use */
+    /* Open the peripherals we plan to use */
     Init_Peripherals();
 
     /* Initialize any I/O cards in the slots */

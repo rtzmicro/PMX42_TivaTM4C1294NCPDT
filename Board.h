@@ -100,9 +100,18 @@ extern "C" {
 #define Board_UART7                 PMX42_UART7
 
 /**** I/O Option Card Specific Port Defines ****/
+#define Board_SLOT1_IRQ             PMX42_SLOT1_IRQ
+#define Board_SLOT2_IRQ             PMX42_SLOT2_IRQ
+#define Board_SLOT3_IRQ             PMX42_SLOT3_IRQ
+#define Board_SLOT4_IRQ             PMX42_SLOT4_IRQ
 
 #define Board_SLOT1_SS              PMX42_SLOT1_GPIO_PD2
 #define Board_SLOT2_SS              PMX42_SLOT2_GPIO_PM2
+#define Board_SLOT3_SS              PMX42_SLOT3_GPIO_PQ1
+#define Board_SLOT4_SS              PMX42_SLOT4_GPIO_PM3
+
+#define Board_SLOT1_RDY             Board_SLOT1_IRQ
+#define Board_SLOT2_RDY             Board_SLOT2_IRQ
 
 #define Board_SLOT1_AD7793_CS1		PMX42_SLOT1_GPIO_PD2
 #define Board_SLOT1_AD7793_CS2		PMX42_SLOT1_GPIO_PM4
@@ -116,8 +125,8 @@ extern "C" {
 #define Board_SLOT3_UART_RS422		PMX42_UART5
 #define Board_SLOT3_UART_RS232		PMX42_UART7
 
-#define Board_SLOT3_GPIO_DE			PMX42_SLOT3_GPIO_DE
-#define Board_SLOT3_GPIO_RE			PMX42_SLOT3_GPIO_RE
+#define Board_SLOT3_GPIO_DE			Board_SLOT3_IRQ
+#define Board_SLOT3_GPIO_RE			Board_SLOT3_SS
 
 #define Board_WATCHDOG0             PMX42_WATCHDOG0
 
