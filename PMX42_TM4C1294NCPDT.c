@@ -1041,17 +1041,15 @@ void PMX42_initUSB(PMX42_USBMode usbMode)
         GPIOPinTypeUSBDigital(GPIO_PORTD_BASE, GPIO_PIN_6 | GPIO_PIN_7);
 
         /*
-         *  USB bus fault is routed to pin PQ4.  We create a Hwi to allow us
-         *  to detect power faults and recover gracefully or terminate the
-         *  program.  PQ4 is active low; set the pin as input with a weak
-         *  pull-up.
+         *  USB bus fault USB0 USB0PFLT is routed to pin PA7.  We create a Hwi
+         *  to allow us to detect power faults and recover gracefully or terminate
+         *  the program. PA7 is active low; set the pin as input with a weak pull-up.
          */
-        GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4,
-                         GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-        GPIOIntTypeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_FALLING_EDGE);
-        GPIOIntClear(GPIO_PORTQ_BASE, GPIO_PIN_4);
+        GPIOPadConfigSet(GPIO_PORTA_BASE, GPIO_PIN_7, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+        GPIOIntTypeSet(GPIO_PORTA_BASE, GPIO_PIN_7, GPIO_FALLING_EDGE);
+        GPIOIntClear(GPIO_PORTA_BASE, GPIO_PIN_7);
 
-        /* Create a Hwi for PQ4 pin. */
+        /* Create a Hwi for PA7 pin. */
         Error_init(&eb);
         Hwi_Params_init(&hwiParams);
         Hwi_construct(&(usbBusFaultHwiStruct), INT_GPIOQ4,

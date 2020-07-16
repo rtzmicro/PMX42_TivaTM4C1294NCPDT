@@ -59,6 +59,12 @@
 #include <ti/drivers/I2C.h>
 #include <ti/drivers/UART.h>
 
+/* USB Driver files */
+#include <usblib/usblib.h>
+#include <usblib/usb-ids.h>
+#include <usblib/device/usbdevice.h>
+#include <usblib/device/usbdbulk.h>
+
 /* NDK BSD support */
 #include <sys/socket.h>
 
@@ -81,7 +87,7 @@
 #include "DisplayTask.h"
 
 /* Debounce time for buttons */
-#define DEBOUNCE_TIME       30
+#define DEBOUNCE_TIME       40
 
 /* Global context for drawing */
 tContext g_context;
@@ -94,8 +100,6 @@ SYSDATA     g_sys;
 SYSCONFIG   g_cfg;
 
 /* External Data Items */
-
-extern bool s_isFahrenheit;
 
 /* Static Function Prototypes */
 
@@ -119,7 +123,7 @@ int main(void)
     Board_initGeneral();
     Board_initGPIO();
     Board_initI2C();
-    // Board_initSDSPI();
+    Board_initSDSPI();
     Board_initSPI();
     Board_initUART();
     // Board_initUSB(Board_USBDEVICE);
@@ -164,11 +168,11 @@ int main(void)
         System_abort("Mailbox create failed\nAborting...");
     }
 
-    /* Create task with priority 15 */
+    /* Create the command handler task */
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
-    taskParams.priority  = 15;
+    taskParams.priority  = 10;
     Task_create((Task_FuncPtr)CommandTaskFxn, &taskParams, &eb);
 
     System_printf("Starting PMX42 execution.\n");
@@ -199,85 +203,6 @@ int main(void)
 void NDKStackBeginHook(void)
 {
     Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
-}
-
-//*****************************************************************************
-// This function reads the unique 128-serial number and 48-bit MAC address
-// via I2C from the AT24MAC402 serial EPROM.
-//*****************************************************************************
-
-int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
-{
-    bool            ret;
-    uint8_t         txByte;
-    I2C_Handle      handle;
-    I2C_Params      params;
-    I2C_Transaction i2cTransaction;
-
-    /* default is all FF's  in case read fails*/
-    memset(ui8SerialNumber, 0xFF, 16);
-    memset(ui8MAC, 0xFF, 6);
-
-    I2C_Params_init(&params);
-    params.transferCallbackFxn = NULL;
-    params.transferMode = I2C_MODE_BLOCKING;
-    params.bitRate = I2C_100kHz;
-
-    handle = I2C_open(Board_I2C_AT24MAC402, &params);
-
-    if (!handle) {
-        System_printf("I2C did not open\n");
-        System_flush();
-        return 0;
-    }
-
-    /* Note the Upper bit of the word address must be set
-     * in order to read the serial number. Thus 80H would
-     * set the starting address to zero prior to reading
-     * this sixteen bytes of serial number data.
-     */
-
-    txByte = 0x80;
-
-    i2cTransaction.slaveAddress = AT24MAC_EPROM_EXT_ADDR;
-    i2cTransaction.writeBuf     = &txByte;
-    i2cTransaction.writeCount   = 1;
-    i2cTransaction.readBuf      = ui8SerialNumber;
-    i2cTransaction.readCount    = 16;
-
-    ret = I2C_transfer(handle, &i2cTransaction);
-
-    if (!ret)
-    {
-        System_printf("Unsuccessful I2C transfer\n");
-        System_flush();
-    }
-
-    /* Now read the 6-byte 48-bit MAC at address 0x9A. The EUI-48 address
-     * contains six or eight bytes. The first three bytes of the  UI read-only
-     * address field are called the Organizationally Unique Identifier (OUI)
-     * and the IEEE Registration Authority has assigned FCC23Dh as the Atmel OUI.
-     */
-
-    txByte = 0x9A;
-
-    i2cTransaction.slaveAddress = AT24MAC_EPROM_EXT_ADDR;
-    i2cTransaction.writeBuf     = &txByte;
-    i2cTransaction.writeCount   = 1;
-    i2cTransaction.readBuf      = ui8MAC;
-    i2cTransaction.readCount    = 6;
-
-    ret = I2C_transfer(handle, &i2cTransaction);
-
-    if (!ret)
-    {
-        System_printf("Unsuccessful I2C transfer\n");
-        System_flush();
-    }
-
-    I2C_close(handle);
-
-    return ret;
 }
 
 //*****************************************************************************
@@ -329,6 +254,9 @@ bool Init_Peripherals(void)
         return false;
     }
 
+    /* Initialize the USB module for device mode */
+    //USB_init();
+
     return true;
 }
 
@@ -339,6 +267,15 @@ bool Init_Peripherals(void)
 
 bool Init_IO_Cards(void)
 {
+    /* This enables the DIVSCLK output pin on PQ4
+     * and generates a 1.2 Mhz clock signal on the.
+     * expansion header and pin 16 of the edge
+     * connector if a clock signal is required.
+     */
+#if (DIV_CLOCK_ENABLED > 0)
+    EnableClockDivOutput(100);
+#endif
+
     /*
      * Create and initialize the AD7799 objects.
      */
@@ -441,7 +378,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
-    taskParams.priority  = 10;
+    taskParams.priority  = 5;
     Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
 
     /* Now begin the main program command task processing loop */
@@ -475,10 +412,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
             case Board_BTN_SW3:
                 /* Toggle temp display mode */
-                if (s_isFahrenheit)
-                    s_isFahrenheit = false;
-                else
-                    s_isFahrenheit = true;
                 /* Update the screen */
                 msgDisp.dispCommand = SCREEN_REFRESH;
                 Mailbox_post(g_mailboxDisplay, &msgDisp, BIOS_NO_WAIT);
@@ -551,7 +484,6 @@ void gpioButtonHwi(unsigned int index)
         msg.ui32Data = index;
         Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
     }
-
 }
 
 // End-Of-File

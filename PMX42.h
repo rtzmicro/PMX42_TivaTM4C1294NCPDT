@@ -15,12 +15,18 @@
 #include "AD7799.h"
 
 /* Helper Macros */
-#define ADC_TO_CELCIUS(c)           ( 147.5f - ((75.0f * VREF * (float)c) / 4096.0f) )
 #define CELCIUS_TO_FAHRENHEIT(c)    ( (float)c * 1.8f + 32.0f )
 
 //*****************************************************************************
 // CONSTANTS AND CONFIGURATION
 //*****************************************************************************
+
+/* This enables the DIVSCLK output pin on PQ4 and generates a clock signal
+ * from the main cpu clock divided by 'div' parameter. A value of 100 gives
+ * a clock of 1.2 Mhz.
+ */
+
+#define DIV_CLOCK_ENABLED   0
 
 /* VERSION INFO - The min build specifies the minimum build required
  * that does NOT force a default reset of all the config parameters
@@ -30,12 +36,18 @@
  * eprom as normal. This provides a means to force run time config defaults
  * to be reset or not.
  */
-#define FIRMWARE_VER        2           /* firmware version */
-#define FIRMWARE_REV        34          /* firmware revision */
+#define FIRMWARE_VER        1           /* firmware version */
+#define FIRMWARE_REV        2           /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
+#define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
+
+#if (FIRMWARE_MIN_BUILD > FIRMWARE_BUILD)
+#error "X24015 build option FIRMWARE_MIN_BUILD set incorrectly"
+#endif
 
 #define MAGIC               0xCEB0FACE  /* magic number for EEPROM data */
 #define MAKEREV(v, r)       ((v << 16) | (r & 0xFFFF))
+
 
 //*****************************************************************************
 // 128-BIT GUID Structure

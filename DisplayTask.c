@@ -76,6 +76,7 @@
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "PMX42.h"
+#include "Utils.h"
 #include "AD7793.h"
 #include "DisplayTask.h"
 
@@ -94,77 +95,6 @@ uint32_t s_uScreenNum = 0;
 uint32_t s_uSampleCount = 0;
 uint32_t s_adc1 = 0;
 uint32_t s_adc2 = 0;
-
-bool s_isFahrenheit = false;
-
-/* Static Function Prototypes */
-static int GetHexStr(char* textbuf, uint8_t* databuf, int datalen);
-
-//*****************************************************************************
-// Format a data buffer into an ascii hex string.
-//*****************************************************************************
-
-#if 1
-int GetHexStr(char* textbuf, uint8_t* databuf, int datalen)
-{
-    char *p = textbuf;
-    uint8_t *d;
-    uint32_t i;
-    int32_t l;
-
-    const uint32_t wordSize = 4;
-
-    /* Null output text buffer initially */
-    *textbuf = 0;
-
-    /* Make sure buffer length is not zero */
-    if (!datalen)
-        return 0;
-
-    /* Read data bytes in reverse order so we print most significant byte first */
-    d = databuf + (datalen-1);
-
-    for (i=0; i < datalen; i++)
-    {
-        l = sprintf(p, "%02X", *d--);
-        p += l;
-
-        if (((i % wordSize) == (wordSize-1)) && (i != (datalen-1)))
-        {
-            l = sprintf(p, "-");
-            p += l;
-        }
-    }
-
-    return strlen(textbuf);
-}
-#else
-int GetHexStr(char* textbuf, uint8_t* databuf, int datalen)
-{
-    char fmt[8];
-    uint32_t i;
-    int32_t l;
-
-    const uint32_t wordSize = 4;
-
-    *textbuf = 0;
-    strcpy(fmt, "%02X");
-
-    for (i=0; i < datalen; i++)
-    {
-        l = sprintf(textbuf, fmt, *databuf++);
-        textbuf += l;
-
-        if (((i % wordSize) == (wordSize-1)) && (i != (datalen-1)))
-        {
-            l = sprintf(textbuf, "-");
-            textbuf += l;
-        }
-    }
-
-    return strlen(textbuf);
-}
-#endif
 
 //*****************************************************************************
 //
@@ -231,11 +161,13 @@ void DisplayWelcome()
 // Display the curreent measurement screen data
 //*****************************************************************************
 
-#define LAST_SCREEN					1
+#define LAST_SCREEN     1
+
+#define UV_CHANNELS     4
 
 void DrawScreen(uint32_t uScreenNum)
 {
-	char tempScaleChar;
+    int i;
 	int len;
 	uint32_t y = 0;
 	uint32_t x = 0;
@@ -243,74 +175,17 @@ void DrawScreen(uint32_t uScreenNum)
 	uint32_t width;
 	uint32_t spacing = 0;
 	tRectangle rect;
-	UInt key;
+	float uvlevel[UV_CHANNELS];
 	static char buf[128];
+
+    for (i=0; i < UV_CHANNELS; i++)
+        uvlevel[i] = 0.0f;
 
 	ClearDisplay();
 
 	/* Set foreground pixel color on to 0x01 */
 	GrContextForegroundSetTranslated(&g_context, 1);
 	GrContextBackgroundSetTranslated(&g_context, 0);
-
-	/* RTD standards
-	 *
-	 * There are two standards for platinum RTDs: the European standard
-	 * (also known as the DIN or IEC standard) and the American standard.
-	 * The European standard, also known as the DIN or IEC standard, is
-	 * considered the world-wide standard for platinum RTDs. This standard,
-	 * DIN/IEC 60751 (or simply IEC751), requires the RTD to have an electrical
-	 * resistance of 100.00 ohm at 0°C and a temperature coefficient of
-	 * resistance (TCR) of 0.00385 ohm/ohm/°C between 0 and 100°C.
-	 *
-	 * There are two resistance tolerances specified in DIN/IEC751:
-	 *
-	 * Class A = ±(0.15 + 0.002*t)°C or 100.00 ±0.06 ohm at 0ºC
-	 * Class B = ±(0.3 + 0.005*t)°C or 100.00 ±0.12 ohm at 0ºC
-     *
-	 * Two resistance tolerances used in industry are:
-	 *
-	 * 1/3 DIN = ±1/3* (0.3 + 0.005*t)°C or 100.00 ±0.10 ohm at 0ºC
-	 * 1/10 DIN = ±1/10* (0.3 + 0.005*t)°C or 100.00 ±0.03 ohm at 0ºC
-     *
-	 * The combination of resistance tolerance and temperature coefficient
-	 * define the resistance vs. temperature characteristics for the RTD
-	 * sensor. The larger the element tolerance, the more the sensor will
-	 * deviate from a generalized curve, and the more variation there will
-	 * be from sensor to sensor (interchangeability). This is important to
-	 * users who need to change or replace sensors and want to minimize
-	 * interchangeability errors.
-	 */
-
-	/* Read the ADC's for the RDT temperature sensors */
-	//s_adc1 = AD7793_SingleConversion(Board_SLOT1_AD7793_CS1);
-	//s_adc2 = AD7793_SingleConversion(Board_SLOT1_AD7793_CS2);
-
-	//s_adc1 = AD7793_ContinuousReadAvg(Board_SLOT2_AD7793_CS1, 12);
-	//s_adc2 = AD7793_ContinuousReadAvg(Board_SLOT2_AD7793_CS2, 12);
-
-	/* Convert ADC value to Celcius */
-	float temp1 = 0.0f;   //AD7793_temperature(s_adc1);
-	float temp2 = 0.0f; //AD7793_temperature(s_adc2);
-
-	/* Convert Celcius to Fahrenheit */
-	key = Hwi_disable();
-
-	if (s_isFahrenheit)
-	{
-		tempScaleChar = 'F';
-		temp1 = CELCIUS_TO_FAHRENHEIT(temp1);
-		temp2 = CELCIUS_TO_FAHRENHEIT(temp2);
-	}
-	else
-	{
-		tempScaleChar = 'C';
-	}
-
-	Hwi_restore(key);
-
-	//sprintf(buf, "%f", temp1);
-	//System_printf("temp1 %s\n", buf);
-	//System_flush();
 
 	++s_uSampleCount;
 
@@ -321,8 +196,6 @@ void DrawScreen(uint32_t uScreenNum)
 			y = 0;
 			x = 0;
 			spacing = 2;
-
-			tempScaleChar = (s_isFahrenheit) ? 'F' : 'C';
 
 		    /* Top line fixed system font in inverse */
 		    GrContextFontSet(&g_context, g_psFontFixed6x8);
@@ -355,19 +228,16 @@ void DrawScreen(uint32_t uScreenNum)
 			y += spacing + height + 5;
 
 			/* Setup the font and get it's height */
-			GrContextFontSet(&g_context,  g_psFontCmss16b);
+			GrContextFontSet(&g_context,  g_psFontCmss12b);
 		    height = GrStringHeightGet(&g_context);
 
-			//sprintf(buf, "CH-1: %-6.6X", s_adc1);
-			sprintf(buf, "CH-1: %.1f %c", temp1, tempScaleChar);
-			GrStringDraw(&g_context, buf, -1, x, y, 0);
-
-			y += height + spacing;
-
-			//sprintf(buf, "CH-2: %-6.6X", s_adc2);
-			sprintf(buf, "CH-2: %.1f %c", temp2, tempScaleChar);
-			GrStringDraw(&g_context, buf, -1, x, y, 0);
-
+		    for (i=0; i < UV_CHANNELS; i++)
+		    {
+	            //sprintf(buf, "CH-1: %-6.6X", s_adc1);
+	            sprintf(buf, "CH-%d: %.1f mW/cm2", i, uvlevel[i]);
+	            GrStringDraw(&g_context, buf, -1, x, y, 0);
+	            y += height + spacing;
+		    }
 			break;
 
 		/* 1 Big Number Centered */
