@@ -112,7 +112,7 @@ void ClearDisplay()
 //
 //*****************************************************************************
 
-void DisplayWelcome()
+void DrawWelcome()
 {
 	char buf[64];
 
@@ -303,7 +303,7 @@ Void DisplayTaskFxn(UArg arg0, UArg arg1)
 
     ClearDisplay();
 
-    DisplayWelcome();
+    DrawWelcome();
 
     while (true)
     {
