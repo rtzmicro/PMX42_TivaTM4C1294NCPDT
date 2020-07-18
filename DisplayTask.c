@@ -228,7 +228,7 @@ void DrawScreen(uint32_t uScreenNum)
 			y += spacing + height + 5;
 
 			/* Setup the font and get it's height */
-			GrContextFontSet(&g_context,  g_psFontCmss12b);
+			GrContextFontSet(&g_context,  g_psFontFixed6x8);
 		    height = GrStringHeightGet(&g_context);
 
 		    for (i=0; i < UV_CHANNELS; i++)
