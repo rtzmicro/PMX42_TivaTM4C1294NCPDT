@@ -80,6 +80,9 @@
 #include "AD7793.h"
 #include "DisplayTask.h"
 
+#define LAST_SCREEN     1
+#define UV_CHANNELS     4
+
 /* Global context for drawing */
 extern tContext g_context;
 
@@ -160,10 +163,6 @@ void DrawWelcome()
 //*****************************************************************************
 // Display the curreent measurement screen data
 //*****************************************************************************
-
-#define LAST_SCREEN     1
-
-#define UV_CHANNELS     4
 
 void DrawScreen(uint32_t uScreenNum)
 {
@@ -274,6 +273,73 @@ void DrawScreen(uint32_t uScreenNum)
 
 		default:
 			break;
+    }
+
+    GrFlush(&g_context);
+}
+
+
+void DrawUV(void)
+{
+    int i;
+    int len;
+    uint32_t y;
+    uint32_t x;
+    uint32_t height;
+    uint32_t width;
+    uint32_t spacing;
+    tRectangle rect;
+    float uvlevel[UV_CHANNELS];
+    static char buf[128];
+
+    for (i=0; i < UV_CHANNELS; i++)
+        uvlevel[i] = 0.0f;
+
+    ClearDisplay();
+
+    x = 0;
+    y = 0;
+    spacing = 2;
+
+    /* Top line fixed system font in inverse */
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
+
+    len = sprintf(buf, "CH");
+    width = GrStringWidthGet(&g_context, buf, len);
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    rect.i16XMin = x;
+    rect.i16YMin = y;
+    rect.i16XMax = width + 1;
+    rect.i16YMax = height + 1;
+    GrRectDraw(&g_context, &rect);
+
+    GrContextForegroundSetTranslated(&g_context, 0);
+    GrContextBackgroundSetTranslated(&g_context, 1);
+
+    GrStringDraw(&g_context, buf, -1, x+1, y+1, 1);
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    len = sprintf(buf, "UVC mW/cm2");
+    GrStringDraw(&g_context, buf, -1, x+width+4+1, y+1, 0);
+
+    x = 2;
+    y += spacing + height + 5;
+
+    /* Setup the font and get it's height */
+    GrContextFontSet(&g_context,  g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
+
+    for (i=0; i < UV_CHANNELS; i++)
+    {
+        sprintf(buf, "%d: %.1f", i, uvlevel[i]);
+        GrStringDraw(&g_context, buf, -1, x, y, 0);
+        y += height + spacing;
     }
 
     GrFlush(&g_context);
