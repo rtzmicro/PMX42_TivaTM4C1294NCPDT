@@ -356,8 +356,14 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     if (!ReadGUIDS(g_sys.ui8SerialNumber, g_sys.ui8MAC))
     {
         System_printf("Read Serial Number Failed!\n");
-        System_flush();
     }
+    else
+    {
+        System_printf("MAC Address: %2x%2x%2x%2x%2x%2x\n",
+                      g_sys.ui8MAC[0], g_sys.ui8MAC[1], g_sys.ui8MAC[2],
+                      g_sys.ui8MAC[3], g_sys.ui8MAC[4], g_sys.ui8MAC[5]);
+    }
+    System_flush();
 
     /* STEP-2 - Don't initialize EMAC layer until after reading MAC address above! */
     Board_initEMAC();

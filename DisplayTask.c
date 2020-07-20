@@ -99,11 +99,14 @@ uint32_t s_uSampleCount = 0;
 uint32_t s_adc1 = 0;
 uint32_t s_adc2 = 0;
 
+/* Static Function Prototypes */
+void DrawUV(void);
+
 //*****************************************************************************
 //
 //*****************************************************************************
 
-void ClearDisplay()
+void ClearDisplay(void)
 {
     tRectangle rect = {0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1};
     GrContextForegroundSetTranslated(&g_context, 0);
@@ -115,7 +118,7 @@ void ClearDisplay()
 //
 //*****************************************************************************
 
-void DrawWelcome()
+void DrawWelcome(void)
 {
 	char buf[64];
 
@@ -127,7 +130,6 @@ void DrawWelcome()
     GrRectDraw(&g_context, &rect);
 
     /* Setup font */
-
 	uint32_t y;
 	uint32_t height;
 	uint32_t spacing = 2;
@@ -166,109 +168,15 @@ void DrawWelcome()
 
 void DrawScreen(uint32_t uScreenNum)
 {
-    int i;
-	int len;
-	uint32_t y = 0;
-	uint32_t x = 0;
-	uint32_t height;
-	uint32_t width;
-	uint32_t spacing = 0;
-	tRectangle rect;
-	float uvlevel[UV_CHANNELS];
-	static char buf[128];
-
-    for (i=0; i < UV_CHANNELS; i++)
-        uvlevel[i] = 0.0f;
-
-	ClearDisplay();
-
-	/* Set foreground pixel color on to 0x01 */
-	GrContextForegroundSetTranslated(&g_context, 1);
-	GrContextBackgroundSetTranslated(&g_context, 0);
-
-	++s_uSampleCount;
+    ClearDisplay();
 
     switch(uScreenNum)
     {
-    	/* 2 Channel Temp Measurement Data */
 		case 0:
-			y = 0;
-			x = 0;
-			spacing = 2;
-
-		    /* Top line fixed system font in inverse */
-		    GrContextFontSet(&g_context, g_psFontFixed6x8);
-		    height = GrStringHeightGet(&g_context);
-
-		    len = sprintf(buf, "CNT");
-			width = GrStringWidthGet(&g_context, buf, len);
-
-			GrContextForegroundSetTranslated(&g_context, 1);
-			GrContextBackgroundSetTranslated(&g_context, 0);
-
-			rect.i16XMin = x;
-			rect.i16YMin = y;
-			rect.i16XMax = width + 1;
-			rect.i16YMax = height + 1;
-		    GrRectDraw(&g_context, &rect);
-
-			GrContextForegroundSetTranslated(&g_context, 0);
-			GrContextBackgroundSetTranslated(&g_context, 1);
-
-			GrStringDraw(&g_context, buf, -1, x+1, y+1, 1);
-
-			GrContextForegroundSetTranslated(&g_context, 1);
-			GrContextBackgroundSetTranslated(&g_context, 0);
-
-			sprintf(buf, "%u", s_uSampleCount);
-			GrStringDraw(&g_context, buf, -1, x+width+4+1, y+1, 0);
-
-			x = 2;
-			y += spacing + height + 5;
-
-			/* Setup the font and get it's height */
-			GrContextFontSet(&g_context,  g_psFontFixed6x8);
-		    height = GrStringHeightGet(&g_context);
-
-		    for (i=0; i < UV_CHANNELS; i++)
-		    {
-	            //sprintf(buf, "CH-1: %-6.6X", s_adc1);
-	            sprintf(buf, "CH-%d: %.1f mW/cm2", i, uvlevel[i]);
-	            GrStringDraw(&g_context, buf, -1, x, y, 0);
-	            y += height + spacing;
-		    }
+		    DrawUV();
 			break;
 
-		/* 1 Big Number Centered */
 		case 1:
-		    /* Top line fixed system font in inverse */
-		    GrContextFontSet(&g_context, g_psFontFixed6x8);
-		    height = GrStringHeightGet(&g_context);
-
-			GrContextForegroundSetTranslated(&g_context, 0);
-			GrContextBackgroundSetTranslated(&g_context, 1);
-
-		    len = sprintf(buf, "CH-1");
-			width = GrStringWidthGet(&g_context, buf, len);
-			GrStringDraw(&g_context, buf, -1, 0, y, 1);
-
-			GrContextForegroundSetTranslated(&g_context, 1);
-			GrContextBackgroundSetTranslated(&g_context, 0);
-
-		    sprintf(buf, "%d.%02dV", rand() % 999 + 1, rand() % 10 + 1);
-			GrStringDraw(&g_context, buf, -1, width+4, y, 0);
-
-			y += height + spacing;
-
-			/* Now draw the big digits centered */
-			GrContextFontSet(&g_context, g_psFontWDseg7bold24pt);
-			//GrContextFontSet(&g_context, g_psFontCm30b);
-		    height = GrStringHeightGet(&g_context);
-			len = sprintf(buf, "%d", rand() % 999 + 1);
-			//GrStringDraw(&g_context, buf, -1, 10, y, 0);
-			GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, SCREEN_HEIGHT/2, FALSE);
-
-			y += height + spacing;
 			break;
 
 		default:
@@ -277,7 +185,6 @@ void DrawScreen(uint32_t uScreenNum)
 
     GrFlush(&g_context);
 }
-
 
 void DrawUV(void)
 {
@@ -295,15 +202,13 @@ void DrawUV(void)
     for (i=0; i < UV_CHANNELS; i++)
         uvlevel[i] = 0.0f;
 
-    ClearDisplay();
-
     x = 0;
     y = 0;
     spacing = 2;
 
     /* Top line fixed system font in inverse */
     GrContextFontSet(&g_context, g_psFontFixed6x8);
-    height = GrStringHeightGet(&g_context);
+    height = GrStringHeightGet(&g_context) - 1;
 
     len = sprintf(buf, "CH");
     width = GrStringWidthGet(&g_context, buf, len);
@@ -325,10 +230,10 @@ void DrawUV(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    len = sprintf(buf, "UVC mW/cm2");
-    GrStringDraw(&g_context, buf, -1, x+width+4+1, y+1, 0);
+    len = sprintf(buf, "UV-C mW/cm2");
+    GrStringDraw(&g_context, buf, -1, x+width+7, y+1, 0);
 
-    x = 2;
+    x = 1;
     y += spacing + height + 5;
 
     /* Setup the font and get it's height */
@@ -341,8 +246,6 @@ void DrawUV(void)
         GrStringDraw(&g_context, buf, -1, x, y, 0);
         y += height + spacing;
     }
-
-    GrFlush(&g_context);
 }
 
 

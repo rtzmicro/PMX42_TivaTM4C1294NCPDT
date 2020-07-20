@@ -32,8 +32,9 @@ typedef struct DisplayMessage{
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
-void ClearDisplay();
-void DrawWelcome();
 Void DisplayTaskFxn(UArg arg0, UArg arg1);
+
+void ClearDisplay(void);
+void DrawWelcome(void);
 
 #endif /* __DISPLAYTASK_H */

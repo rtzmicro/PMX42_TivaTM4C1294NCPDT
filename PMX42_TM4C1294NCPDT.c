@@ -239,6 +239,26 @@ const EMAC_Config EMAC_config[] = {
 /*
  *  ======== PMX42_initEMAC ========
  */
+
+/* Don't call Board_initEMAC() in main(). Instead call it in a task after you get the MAC address.
+ *
+ * You have a couple options to delay the starting of the NDK stack:
+ * 1. Do not graphically generate it. Instead supply the thread yourself and start it after calling Board_initEMAC().
+ * 2. Add a startup hook function into the stack via the .cfg file. Have that function block on a semaphore.
+ * Post the semaphore after you call Board_initEMAC(). The hook is called very early in the stack thread,
+ * well before the MAC address is referenced.
+ *
+ * .cfg file
+ *  Global.stackBeginHook = "&myNDKStackBeginHook";
+ *
+ * .c file
+ *  void myNDKStackBeginHook()
+ *  {
+ *      Semaphore_pend(mySem, BIOS_WAIT_FOREVER);
+ *  }
+ *
+ */
+
 void PMX42_initEMAC(void)
 {
     memcpy(macAddress, g_sys.ui8MAC, 6);
@@ -268,6 +288,7 @@ void PMX42_initEMAC(void)
         System_abort("Change the macAddress variable to match your boards MAC sticker");
     }
 #endif
+
     // Enable peripheral EPHY0
     SysCtlPeripheralEnable(SYSCTL_PERIPH_EPHY0);
 
