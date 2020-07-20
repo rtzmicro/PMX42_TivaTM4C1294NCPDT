@@ -101,6 +101,8 @@ SYSCONFIG   g_cfg;
 
 /* External Data Items */
 
+extern void TCP_listen_init(void);
+
 /* Static Function Prototypes */
 
 void gpioButtonHwi(unsigned int index);
@@ -193,19 +195,6 @@ int main(void)
 }
 
 //*****************************************************************************
-// This is a hook into the NDK stack to allow delaying execution of the NDK
-// stack task until after we load the MAC address from the AT24MAC serial
-// EPROM part. This hook blocks on a semaphore until after we're able to call
-// Board_initEMAC() in the CommandTaskFxn() below. This mechanism allows us
-// to delay execution until we load the MAC from EPROM.
-//*****************************************************************************
-
-void NDKStackBeginHook(void)
-{
-    Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
-}
-
-//*****************************************************************************
 //
 //
 //*****************************************************************************
@@ -253,9 +242,6 @@ bool Init_Peripherals(void)
         System_flush();
         return false;
     }
-
-    /* Initialize the USB module for device mode */
-    //USB_init();
 
     return true;
 }
@@ -339,6 +325,19 @@ bool Init_IO_Cards(void)
 }
 
 //*****************************************************************************
+// This is a hook into the NDK stack to allow delaying execution of the NDK
+// stack task until after we load the MAC address from the AT24MAC serial
+// EPROM part. This hook blocks on a semaphore until after we're able to call
+// Board_initEMAC() in the CommandTaskFxn() below. This mechanism allows us
+// to delay execution until we load the MAC from EPROM.
+//*****************************************************************************
+
+void NDKStackBeginHook(void)
+{
+    Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
+}
+
+//*****************************************************************************
 //
 //
 //*****************************************************************************
@@ -376,6 +375,12 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     /* Initialize any I/O cards in the slots */
     Init_IO_Cards();
+
+    /* Startup the TCP listener task */
+    //TCP_listen_init();
+
+    /* Initialize the USB module for device mode */
+    //USB_init();
 
     /*
      * Create the display task

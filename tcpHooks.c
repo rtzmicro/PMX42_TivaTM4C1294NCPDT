@@ -77,7 +77,7 @@ extern SYSDATA g_sys;
 //extern SYSCONFIG g_sysConfig;
 
 /* Prototypes */
-void netOpenHook(void);
+//void netOpenHook(void);
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
 Void tcpHandler(UArg arg0, UArg arg1);
 Void tcpWorker(UArg arg0, UArg arg1);
@@ -89,7 +89,7 @@ extern void NtIPN2Str(uint32_t IPAddr, char *str);
 // NDK network open hook used to initialize IPv6
 //*****************************************************************************
 
-void netOpenHook()
+void TCP_listen_init(void)
 {
     Task_Handle taskHandle;
     Task_Params taskParams;
@@ -106,7 +106,9 @@ void netOpenHook()
     taskParams.stackSize = TCPHANDLERSTACK;
     taskParams.priority = 1;
     taskParams.arg0 = TCPPORT;
+
     taskHandle = Task_create((Task_FuncPtr)tcpHandler, &taskParams, &eb);
+
     if (taskHandle == NULL) {
         System_printf("netOpenHook: Failed to create tcpHandler Task\n");
     }
@@ -180,6 +182,7 @@ Void tcpHandler(UArg arg0, UArg arg1)
             accept(server, (struct sockaddr *)&clientAddr, &addrlen)) != -1) {
 
         System_printf("tcpHandler: Creating thread clientfd = %d\n", clientfd);
+        System_flush();
 
         /* Init the Error_Block */
         Error_init(&eb);
@@ -191,6 +194,7 @@ Void tcpHandler(UArg arg0, UArg arg1)
         taskHandle = Task_create((Task_FuncPtr)tcpWorker, &taskParams, &eb);
         if (taskHandle == NULL) {
             System_printf("Error: Failed to create new Task\n");
+            System_flush();
             close(clientfd);
         }
 
@@ -201,6 +205,9 @@ Void tcpHandler(UArg arg0, UArg arg1)
     System_printf("Error: accept failed.\n");
 
 shutdown:
+
+    System_flush();
+
     if (server > 0) {
         close(server);
     }
