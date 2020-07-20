@@ -125,7 +125,8 @@ void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
     else
         NtIPN2Str(0, g_sys.ipAddr);
 
-    //System_printf("netIPUpdate() dhcp->%s\n", g_sysData.ipAddr);
+    System_printf("netIPUpdate() dhcp->%s\n", g_sys.ipAddr);
+    System_flush();
 }
 
 //*****************************************************************************
