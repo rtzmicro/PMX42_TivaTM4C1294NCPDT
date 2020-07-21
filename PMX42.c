@@ -127,8 +127,7 @@ int main(void)
     Board_initSDSPI();
     Board_initSPI();
     Board_initUART();
-    // Board_initUSB(Board_USBDEVICE);
-    // Board_initUSBMSCHFatFs();
+    Board_initUSB(Board_USBDEVICE);
     // Board_initWatchdog();
     // Board_initWiFi();
 

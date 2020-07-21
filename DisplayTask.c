@@ -101,6 +101,7 @@ uint32_t s_adc2 = 0;
 
 /* Static Function Prototypes */
 void DrawUV(void);
+void DrawBarGraph(tRectangle rect, float percent);
 
 //*****************************************************************************
 //
@@ -230,8 +231,12 @@ void DrawUV(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    len = sprintf(buf, "UV-C mW/cm2");
+    len = sprintf(buf, "mW/cm2");
     GrStringDraw(&g_context, buf, -1, x+width+7, y+1, 0);
+
+    len = sprintf(buf, "UV-C");
+    width = GrStringWidthGet(&g_context, buf, len);
+    GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y+1, 0);
 
     x = 1;
     y += spacing + height + 5;
@@ -242,12 +247,60 @@ void DrawUV(void)
 
     for (i=0; i < UV_CHANNELS; i++)
     {
-        sprintf(buf, "%d: %.1f", i, uvlevel[i]);
+        int val = rand() % 8;
+
+        sprintf(buf, "%d: %.1f", i, (float)val);
         GrStringDraw(&g_context, buf, -1, x, y, 0);
+
+        rect.i16XMin = x + 50;
+        rect.i16YMin = y;
+        rect.i16XMax = SCREEN_WIDTH - 1;
+        rect.i16YMax = (height - 2) + rect.i16YMin;
+
+        float percentage = ((float)val / 7.0f) * 100.0f;
+
+        DrawBarGraph(rect, percentage);
+
         y += height + spacing;
     }
 }
 
+void DrawBarGraph(tRectangle rect, float percent)
+{
+    int32_t x;
+    tRectangle rect2;
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+    GrRectDraw(&g_context, &rect);
+
+    rect2 = rect;
+
+    rect2.i16XMin += 2;
+    rect2.i16YMin += 2;
+    rect2.i16XMax -= 2;
+    rect2.i16YMax -= 2;
+
+    int32_t x1 = rect2.i16XMin;
+    int32_t x2 = rect2.i16XMax;
+
+    float pscale = percent * 0.01f;
+
+    x = (int16_t)((float)(x2 - x1) * pscale) + x1;
+
+    if (x > x2)
+        x = x2;
+
+    if (x < x1)
+        x = x1;
+
+    rect2.i16XMax = (int16_t)x - 1;
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    GrRectFill(&g_context, &rect2);
+}
 
 //*****************************************************************************
 // OLED Display Drawing task
