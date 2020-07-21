@@ -85,6 +85,7 @@
 #include "PMX42.h"
 #include "AD7793.h"
 #include "DisplayTask.h"
+#include "usb_device.h"
 
 /* Debounce time for buttons */
 #define DEBOUNCE_TIME       40
@@ -100,8 +101,6 @@ SYSDATA     g_sys;
 SYSCONFIG   g_cfg;
 
 /* External Data Items */
-
-extern void TCP_listen_init(void);
 
 /* Static Function Prototypes */
 
@@ -355,14 +354,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     if (!ReadGUIDS(g_sys.ui8SerialNumber, g_sys.ui8MAC))
     {
         System_printf("Read Serial Number Failed!\n");
+        System_flush();
     }
-    else
-    {
-        System_printf("MAC Address: %2x%2x%2x%2x%2x%2x\n",
-                      g_sys.ui8MAC[0], g_sys.ui8MAC[1], g_sys.ui8MAC[2],
-                      g_sys.ui8MAC[3], g_sys.ui8MAC[4], g_sys.ui8MAC[5]);
-    }
-    System_flush();
 
     /* STEP-2 - Don't initialize EMAC layer until after reading MAC address above! */
     Board_initEMAC();
@@ -376,11 +369,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Initialize any I/O cards in the slots */
     Init_IO_Cards();
 
-    /* Startup the TCP listener task */
-    //TCP_listen_init();
-
     /* Initialize the USB module for device mode */
-    //USB_init();
+    USB_init();
 
     /*
      * Create the display task

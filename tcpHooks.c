@@ -76,6 +76,7 @@
 extern SYSDATA g_sys;
 //extern SYSCONFIG g_sysConfig;
 
+
 /* Prototypes */
 //void netOpenHook(void);
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
@@ -89,7 +90,26 @@ extern void NtIPN2Str(uint32_t IPAddr, char *str);
 // NDK network open hook used to initialize IPv6
 //*****************************************************************************
 
-void TCP_listen_init(void)
+// This handler is called when the DHCP client is assigned an
+// address from a DHCP server. We store this in our runtime data
+// structure for use later.
+
+void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
+{
+    if (fAdd)
+    {
+        NtIPN2Str(IPAddr, g_sys.ipAddr);
+    }
+    else
+    {
+        NtIPN2Str(0, g_sys.ipAddr);
+    }
+
+    System_printf("netIPUpdate() dhcp->%s\n", g_sys.ipAddr);
+    System_flush();
+}
+
+void netOpenHook(void)
 {
     Task_Handle taskHandle;
     Task_Params taskParams;
@@ -98,36 +118,23 @@ void TCP_listen_init(void)
     /* Make sure Error_Block is initialized */
     Error_init(&eb);
 
-    /*
-     *  Create the Task that farms out incoming TCP connections.
-     *  arg0 will be the port that this task listens to.
+    /* Create the task that listens for incoming TCP connections
+     * to handle streaming transport state info. The parameter arg0
+     * will be the port that this task listens on.
      */
+
     Task_Params_init(&taskParams);
+
     taskParams.stackSize = TCPHANDLERSTACK;
-    taskParams.priority = 1;
-    taskParams.arg0 = TCPPORT;
+    taskParams.priority  = 1;
+    taskParams.arg0      = TCPPORT;
 
     taskHandle = Task_create((Task_FuncPtr)tcpHandler, &taskParams, &eb);
 
     if (taskHandle == NULL) {
-        System_printf("netOpenHook: Failed to create tcpHandler Task\n");
+        System_printf("netOpenHook: Failed to create tcpStateHandler Task\n");
     }
 
-    System_flush();
-}
-
-// This handler is called when the DHCP client is assigned an
-// address from a DHCP server. We store this in our runtime data
-// structure for use later.
-
-void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
-{
-    if (fAdd)
-        NtIPN2Str(IPAddr, g_sys.ipAddr);
-    else
-        NtIPN2Str(0, g_sys.ipAddr);
-
-    System_printf("netIPUpdate() dhcp->%s\n", g_sys.ipAddr);
     System_flush();
 }
 
@@ -139,7 +146,7 @@ Void tcpHandler(UArg arg0, UArg arg1)
 {
     int                status;
     int                clientfd;
-    int                server;
+    int                server = 0;
     struct sockaddr_in localAddr;
     struct sockaddr_in clientAddr;
     int                optval;
@@ -149,12 +156,14 @@ Void tcpHandler(UArg arg0, UArg arg1)
     Task_Params        taskParams;
     Error_Block        eb;
 
+    Task_Handle hSelf = Task_self();
+    fdOpenSession(hSelf);
+
     server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (server == -1) {
         System_printf("Error: socket not created.\n");
         goto shutdown;
     }
-
 
     memset(&localAddr, 0, sizeof(localAddr));
     localAddr.sin_family = AF_INET;
@@ -211,6 +220,8 @@ shutdown:
     if (server > 0) {
         close(server);
     }
+
+    fdClose(hSelf);
 }
 
 //*****************************************************************************
