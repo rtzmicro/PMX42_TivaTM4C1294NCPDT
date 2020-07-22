@@ -80,7 +80,7 @@ const AD7799_Params AD7799_defaultParams = {
 
 /*** Static Function Prototypes ***/
 
-static uint32_t WaitForReady(AD7799_Handle handle);
+static bool WaitForReady(AD7799_Handle handle);
 static Void AD7799_destruct(AD7799_Handle handle);
 static void AD7799_SetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint32_t regValue, uint8_t size);
 static uint32_t AD7799_GetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint8_t size);
@@ -166,19 +166,31 @@ Void AD7799_Params_init(AD7799_Params *params)
  * @return data - The poll count
 *******************************************************************************/
 
-static uint32_t WaitForReady(AD7799_Handle handle)
+static bool WaitForReady(AD7799_Handle handle)
 {
+    bool success = false;
     uint32_t i;
 
     /* Wait for RDY pin to go low */
 
-    for (i=0; i < 1000; i++)
+    for (i=0; i < 100; i++)
     {
-        /* Release chip select to high */
-        //GPIO_read(handle->gpioRDY);
+        /* Wait for DRDY to go low */
+        if (GPIO_read(handle->gpioRDY) == 0)
+        {
+            success = true;
+            break;
+        }
+        Task_sleep(10);
     }
 
-    return i;
+    if (!success)
+    {
+        System_printf("DRDY failed %u\n", i);
+        System_flush();
+    }
+
+    return success;
 }
 
 /***************************************************************************//**
@@ -198,6 +210,7 @@ static uint32_t AD7799_GetRegisterValue(
 {
     uint8_t txBuf[4];
     uint8_t rxBuf[4];
+    uint32_t i;
     uint32_t regval = 0;
     SPI_Transaction transaction;
 
@@ -210,6 +223,9 @@ static uint32_t AD7799_GetRegisterValue(
      * Write the command byte and register address
      */
 
+    /* Wait for RDY pin to go low */
+    WaitForReady(handle);
+
     txBuf[0] = AD7799_COMM_READ | AD7799_COMM_ADDR(regAddress);
 
     transaction.count = 1;
@@ -219,25 +235,24 @@ static uint32_t AD7799_GetRegisterValue(
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
 
-    /* Wait for RDY pin to go low */
-    WaitForReady(handle);
-
     /*
      * Now read back any response data
      */
 
     memset(rxBuf, 0, sizeof(rxBuf));
-    //txBuf[0] = 0;
 
-    transaction.count = size;
-    transaction.txBuf = (Ptr)&txBuf[0];
-    transaction.rxBuf = (Ptr)&rxBuf[0];
+    for (i=0; i < size; i++)
+    {
+        /* Wait for RDY pin to go low */
+        WaitForReady(handle);
 
-    /* Initiate SPI transfer */
-    SPI_transfer(handle->spiHandle, &transaction);
+        transaction.count = 1;
+        transaction.txBuf = (Ptr)&txBuf[i];
+        transaction.rxBuf = (Ptr)&rxBuf[i];
 
-    /* Wait for RDY pin to go low */
-    WaitForReady(handle);
+        /* Initiate SPI transfer */
+        SPI_transfer(handle->spiHandle, &transaction);
+    }
 
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);
@@ -280,6 +295,7 @@ static void AD7799_SetRegisterValue(
         uint8_t size
         )
 {
+    uint32_t i;
     uint8_t txBuf[5];
     uint8_t rxBuf[5];
     SPI_Transaction transaction;
@@ -289,6 +305,9 @@ static void AD7799_SetRegisterValue(
     /* Assert the chip select low */
     GPIO_write(handle->gpioCS, PIN_LOW);
 
+    /* Wait for RDY pin to go low */
+    WaitForReady(handle);
+
     transaction.count = 1;
     transaction.txBuf = (Ptr)&txBuf;
     transaction.rxBuf = (Ptr)&rxBuf;
@@ -297,9 +316,6 @@ static void AD7799_SetRegisterValue(
 
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
-
-    /* Wait for RDY pin to go low */
-    WaitForReady(handle);
 
     /*
      * Now write any register data
@@ -325,15 +341,18 @@ static void AD7799_SetRegisterValue(
         txBuf[3] = (uint8_t)regValue;
     }
 
-    transaction.count = size;
-    transaction.txBuf = (Ptr)&txBuf[0];
-    transaction.rxBuf = (Ptr)&rxBuf[0];
+    for (i=0; i < size; i++)
+    {
+        /* Wait for RDY pin to go low */
+        WaitForReady(handle);
 
-    /* Initiate SPI transfer */
-    SPI_transfer(handle->spiHandle, &transaction);
+        transaction.count = 1;
+        transaction.txBuf = (Ptr)&txBuf[i];
+        transaction.rxBuf = (Ptr)&rxBuf[i];
 
-    /* Wait for RDY pin to go low */
-    WaitForReady(handle);
+        /* Initiate SPI transfer */
+        SPI_transfer(handle->spiHandle, &transaction);
+    }
 
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);

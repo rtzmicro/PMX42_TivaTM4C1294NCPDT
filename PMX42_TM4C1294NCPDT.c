@@ -336,13 +336,13 @@ GPIO_PinConfig gpioPinConfigs[] = {
     /* PMX42_BTN_SW6 */
     GPIOTiva_PN_5 | GPIO_CFG_IN_PU | GPIO_CFG_IN_INT_RISING,
 
-    /* PMX42_SLOT1_IRQ : PL2/SLOT1_IRQ */
+    /* PMX42_SLOT1_IRQ */
     GPIOTiva_PL_2 | GPIO_CFG_IN_PU,
-    /* PMX42_SLOT2_IRQ : PL3/SLOT2_IRQ */
+    /* PMX42_PL3_SLOT2_IRQ */
     GPIOTiva_PL_3 | GPIO_CFG_IN_PU,
-    /* PMX42_SLOT3_IRQ : PL4/SLOT3_IRQ */
+    /* PMX42_PL4_SLOT3_IRQ */
     GPIOTiva_PL_4 | GPIO_CFG_IN_PU,
-    /* PMX42_SLOT4_IRQ PL5/SLOT4_IRQ */
+    /* PMX42_PL5_SLOT4_IRQ */
     GPIOTiva_PL_5 | GPIO_CFG_IN_PU,
 
     /* Output pins */
@@ -351,28 +351,28 @@ GPIO_PinConfig gpioPinConfigs[] = {
     /* PMX42_STAT_LED2 */
     GPIOTiva_PP_3 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
 
-    /* PMX42_SLOT1_GPIO_PD2 */
+    /* PMX42_PD2_SLOT1_SS */
     GPIOTiva_PD_2 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_HIGH,
-    /* PMX42_SLOT1_GPIO_PM4 */
+    /* PMX42_PM4_T4CCP0 */
     GPIOTiva_PM_4 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
-    /* PMX42_SLOT1_GPIO_PM5 */
+    /* PMX42_PM5_T4CCP1 */
     GPIOTiva_PM_5 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
-    /* PMX42_SLOT1_GPIO_PM6 */
+    /* PMX42_PM6_T5CCP0 */
     GPIOTiva_PM_6 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
 
-    /* PMX42_SLOT2_GPIO_PM2 */
+    /* PMX42_PM2_SLOT2_SS */
     GPIOTiva_PM_2 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_HIGH,
-    /* PMX42_SLOT2_GPIO_PF1 */
+    /* PMX42_PF1_M0PWM1 */
     GPIOTiva_PF_1 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
-    /* PMX42_SLOT2_GPIO_PF2 */
+    /* PMX42_PF2_M0PWM2 */
     GPIOTiva_PF_2 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
-    /* PMX42_SLOT2_GPIO_PF3 */
+    /* PMX42_PF3_M0PWM3 */
     GPIOTiva_PF_3 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
 
-    /* PMX42_SLOT3_GPIO_PQ1 */
+    /* PMX42_PQ1_SLOT3_SS */
     GPIOTiva_PQ_1 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_HIGH,
 
-    /* PMX42_SLOT4_GPIO_PM3 */
+    /* PMX42_PM3_SLOT4_SS */
     GPIOTiva_PM_3 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_HIGH
 };
 
@@ -390,7 +390,7 @@ GPIO_CallbackFxn gpioCallbackFunctions[] = {
     NULL,	/* PMX42_BTN_SW4 */
     NULL,	/* PMX42_BTN_SW5 */
     NULL,	/* PMX42_BTN_SW6 */
-    NULL,   /* PMX42_SLOT1_IRQ */
+    NULL,   /* PMX42_PL2_SLOT1_IRQ */
     NULL,   /* PMX42_SLOT2_IRQ */
     NULL,   /* PMX42_SLOT3_IRQ */
     NULL,   /* PMX42_SLOT4_IRQ */
@@ -421,10 +421,10 @@ void PMX42_initGPIO(void)
 
     /* Slot IRQ input pins PL2-PL5 */
     GPIOPinTypeGPIOInput(GPIO_PORTL_BASE,
-                         GPIO_PIN_2 |                      /* PL2/SLOT1_IRQ */
-                         GPIO_PIN_3 |                      /* PL3/SLOT2_IRQ */
-                         GPIO_PIN_4 |                      /* PL4/SLOT3_IRQ */
-                         GPIO_PIN_5);                      /* PL5/SLOT4_IRQ */
+                         GPIO_PIN_2 |                       /* PL2/SLOT1_IRQ */
+                         GPIO_PIN_3 |                       /* PL3/SLOT2_IRQ */
+                         GPIO_PIN_4 |                       /* PL4/SLOT3_IRQ */
+                         GPIO_PIN_5);                       /* PL5/SLOT4_IRQ */
 
     /* Setup LED GPIO output pins used (PP2 & PP3) */
     GPIOPinTypeGPIOOutput(GPIO_PORTP_BASE, GPIO_PIN_2 | GPIO_PIN_3);
