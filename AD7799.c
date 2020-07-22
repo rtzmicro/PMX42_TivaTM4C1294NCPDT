@@ -223,9 +223,6 @@ static uint32_t AD7799_GetRegisterValue(
      * Write the command byte and register address
      */
 
-    /* Wait for RDY pin to go low */
-    WaitForReady(handle);
-
     txBuf[0] = AD7799_COMM_READ | AD7799_COMM_ADDR(regAddress);
 
     transaction.count = 1;
@@ -295,7 +292,6 @@ static void AD7799_SetRegisterValue(
         uint8_t size
         )
 {
-    uint32_t i;
     uint8_t txBuf[5];
     uint8_t rxBuf[5];
     SPI_Transaction transaction;
@@ -304,9 +300,6 @@ static void AD7799_SetRegisterValue(
 
     /* Assert the chip select low */
     GPIO_write(handle->gpioCS, PIN_LOW);
-
-    /* Wait for RDY pin to go low */
-    WaitForReady(handle);
 
     transaction.count = 1;
     transaction.txBuf = (Ptr)&txBuf;
@@ -341,18 +334,12 @@ static void AD7799_SetRegisterValue(
         txBuf[3] = (uint8_t)regValue;
     }
 
-    for (i=0; i < size; i++)
-    {
-        /* Wait for RDY pin to go low */
-        WaitForReady(handle);
+    transaction.count = size;
+    transaction.txBuf = (Ptr)&txBuf[0];
+    transaction.rxBuf = (Ptr)&rxBuf[0];
 
-        transaction.count = 1;
-        transaction.txBuf = (Ptr)&txBuf[i];
-        transaction.rxBuf = (Ptr)&rxBuf[i];
-
-        /* Initiate SPI transfer */
-        SPI_transfer(handle->spiHandle, &transaction);
-    }
+    /* Initiate SPI transfer */
+    SPI_transfer(handle->spiHandle, &transaction);
 
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);
