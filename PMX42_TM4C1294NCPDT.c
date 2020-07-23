@@ -391,9 +391,9 @@ GPIO_CallbackFxn gpioCallbackFunctions[] = {
     NULL,	/* PMX42_BTN_SW5 */
     NULL,	/* PMX42_BTN_SW6 */
     NULL,   /* PMX42_PL2_SLOT1_IRQ */
-    NULL,   /* PMX42_SLOT2_IRQ */
-    NULL,   /* PMX42_SLOT3_IRQ */
-    NULL,   /* PMX42_SLOT4_IRQ */
+    NULL,   /* PMX42_PL3_SLOT2_IRQ */
+    NULL,   /* PMX42_PL4_SLOT3_IRQ */
+    NULL,   /* PMX42_PL5_SLOT4_IRQ */
 };
 
 /* The device-specific GPIO_config structure */

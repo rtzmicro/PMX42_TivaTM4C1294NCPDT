@@ -140,18 +140,6 @@ int main(void)
     GPIO_write(Board_STAT_LED1, Board_LED_ON);
     GPIO_write(Board_STAT_LED2, Board_LED_OFF);
 
-    /* SLOT 3 : Deassert RS-422 DE & RE pins */
-    //GPIO_write(Board_SLOT3_GPIO_DE, PIN_LOW);
-    //GPIO_write(Board_SLOT3_GPIO_RE, PIN_HIGH);
-
-    /* Setup the callback Hwi handler for each button */
-    GPIO_setCallback(Board_BTN_SW1, gpioButtonHwi);
-    GPIO_setCallback(Board_BTN_SW2, gpioButtonHwi);
-    GPIO_setCallback(Board_BTN_SW3, gpioButtonHwi);
-    GPIO_setCallback(Board_BTN_SW4, gpioButtonHwi);
-    GPIO_setCallback(Board_BTN_SW5, gpioButtonHwi);
-    GPIO_setCallback(Board_BTN_SW6, gpioButtonHwi);
-
     /* Create command task mailbox */
     Error_init(&eb);
     Mailbox_Params_init(&mboxParams);
@@ -177,6 +165,14 @@ int main(void)
 
     System_printf("Starting PMX42 execution.\n");
     System_flush();
+
+    /* Setup the callback Hwi handler for each button */
+    GPIO_setCallback(Board_BTN_SW1, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_SW2, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_SW3, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_SW4, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_SW5, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_SW6, gpioButtonHwi);
 
     /* Enable keypad button interrupts */
     GPIO_enableInt(Board_BTN_SW1);
@@ -307,6 +303,7 @@ bool Init_IO_Cards(void)
     }
     else
     {
+#if 1
         /* Set gain to 1 */
         AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
         /* use AIN1(+) - AIN1(-) */
@@ -315,6 +312,7 @@ bool Init_IO_Cards(void)
         AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
         /* Set the reference detect */
         AD7799_SetReference(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
+#endif
     }
 
     System_flush();

@@ -80,7 +80,7 @@ const AD7799_Params AD7799_defaultParams = {
 
 /*** Static Function Prototypes ***/
 
-static bool WaitForReady(AD7799_Handle handle);
+static uint32_t WaitForDataReady(AD7799_Handle handle);
 static Void AD7799_destruct(AD7799_Handle handle);
 static void AD7799_SetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint32_t regValue, uint8_t size);
 static uint32_t AD7799_GetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint8_t size);
@@ -157,6 +157,81 @@ Void AD7799_Params_init(AD7799_Params *params)
     *params = AD7799_defaultParams;
 }
 
+/***************************************************************************//**
+ * @brief Sends 32 consecutive 1's on SPI in order to reset the part.
+ *
+ * @param None.
+ *
+ * @return  None.
+*******************************************************************************/
+
+uint32_t AD7799_Reset(AD7799_Handle handle)
+{
+    IArg key;
+    SPI_Transaction transaction;
+    uint32_t txBuf = 0xFFFFFFFF;
+    uint32_t rxBuf;
+    uint32_t count;
+
+    /* Initialize opcode transaction structure */
+    transaction.count = 4;
+    transaction.txBuf = (Ptr)&txBuf;
+    transaction.rxBuf = (Ptr)&rxBuf;
+
+    /* Enter the critical section */
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    /* Assert the chip select low  */
+    GPIO_write(handle->gpioCS, PIN_LOW);
+
+    /* Initiate SPI transfer */
+    SPI_transfer(handle->spiHandle, &transaction);
+
+    /* Release chip select to high */
+    GPIO_write(handle->gpioCS, PIN_HIGH);
+
+    /* Exit the critical section */
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+
+    count = WaitForDataReady(handle);
+
+    /* Settling time after chip reset */
+    Task_sleep(100);
+
+    return count;
+}
+
+/***************************************************************************//**
+ * @brief Initializes the AD7799 and checks if the device is present.
+ *
+ * @param None.
+ *
+ * @return status - Result of the initialization procedure.
+ *                  Example: 1 - if initialization was successful (ID is 0x0B).
+ *                           0 - if initialization was unsuccessful.
+*******************************************************************************/
+
+uint8_t AD7799_Init(AD7799_Handle handle)
+{
+    uint32_t reg;
+    uint8_t status = 0x1;
+    IArg key;
+
+    /* Enter the critical section */
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    reg = AD7799_GetRegisterValue(handle, AD7799_REG_ID, 1);
+
+    if ((reg & 0x0F) != AD7799_ID)
+    {
+        status = 0x0;
+    }
+
+    /* Exit the critical section */
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+
+    return status;
+}
 
 /***************************************************************************//**
  * @brief Poll the RDY bit on the GPIO to see if data word is ready.
@@ -166,31 +241,29 @@ Void AD7799_Params_init(AD7799_Params *params)
  * @return data - The poll count
 *******************************************************************************/
 
-static bool WaitForReady(AD7799_Handle handle)
+static uint32_t WaitForDataReady(AD7799_Handle handle)
 {
-    bool success = false;
+#if 0
+    uint32_t count = 0;
+
     uint32_t i;
 
     /* Wait for RDY pin to go low */
 
-    for (i=0; i < 100; i++)
+    for (i=1; i <= 100000; i++)
     {
         /* Wait for DRDY to go low */
         if (GPIO_read(handle->gpioRDY) == 0)
         {
-            success = true;
+            count = i;
             break;
         }
-        Task_sleep(10);
     }
+#endif
 
-    if (!success)
-    {
-        System_printf("DRDY failed %u\n", i);
-        System_flush();
-    }
+    while (GPIO_read(handle->gpioRDY) == 0);
 
-    return success;
+    return 0;
 }
 
 /***************************************************************************//**
@@ -210,7 +283,7 @@ static uint32_t AD7799_GetRegisterValue(
 {
     uint8_t txBuf[4];
     uint8_t rxBuf[4];
-    uint32_t i;
+    uint32_t i, count;
     uint32_t regval = 0;
     SPI_Transaction transaction;
 
@@ -232,6 +305,8 @@ static uint32_t AD7799_GetRegisterValue(
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
 
+    count = WaitForDataReady(handle);
+
     /*
      * Now read back any response data
      */
@@ -240,15 +315,15 @@ static uint32_t AD7799_GetRegisterValue(
 
     for (i=0; i < size; i++)
     {
-        /* Wait for RDY pin to go low */
-        WaitForReady(handle);
-
         transaction.count = 1;
         transaction.txBuf = (Ptr)&txBuf[i];
         transaction.rxBuf = (Ptr)&rxBuf[i];
 
         /* Initiate SPI transfer */
         SPI_transfer(handle->spiHandle, &transaction);
+
+        /* Wait for RDY pin to go low */
+        count = WaitForDataReady(handle);
     }
 
     /* Release chip select to high */
@@ -294,6 +369,7 @@ static void AD7799_SetRegisterValue(
 {
     uint8_t txBuf[5];
     uint8_t rxBuf[5];
+    uint32_t i, count;
     SPI_Transaction transaction;
 
     memset(txBuf, 0, sizeof(txBuf));
@@ -309,6 +385,9 @@ static void AD7799_SetRegisterValue(
 
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
+
+    /* Wait for RDY pin to go low */
+    count = WaitForDataReady(handle);
 
     /*
      * Now write any register data
@@ -334,86 +413,21 @@ static void AD7799_SetRegisterValue(
         txBuf[3] = (uint8_t)regValue;
     }
 
-    transaction.count = size;
-    transaction.txBuf = (Ptr)&txBuf[0];
-    transaction.rxBuf = (Ptr)&rxBuf[0];
-
-    /* Initiate SPI transfer */
-    SPI_transfer(handle->spiHandle, &transaction);
-
-    /* Release chip select to high */
-    GPIO_write(handle->gpioCS, PIN_HIGH);
-}
-
-/***************************************************************************//**
- * @brief Initializes the AD7799 and checks if the device is present.
- *
- * @param None.
- *
- * @return status - Result of the initialization procedure.
- *                  Example: 1 - if initialization was successful (ID is 0x0B).
- *                           0 - if initialization was unsuccessful.
-*******************************************************************************/
-
-uint8_t AD7799_Init(AD7799_Handle handle)
-{
-    uint32_t reg;
-    uint8_t status = 0x1;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
-
-    reg = AD7799_GetRegisterValue(handle, AD7799_REG_ID, 1);
-
-    if ((reg & 0x0F) != AD7799_ID)
+    for(i=0; i < size; i++)
     {
-        status = 0x0;
+        transaction.count = size;
+        transaction.txBuf = (Ptr)&txBuf[i];
+        transaction.rxBuf = (Ptr)&rxBuf[i];
+
+        /* Initiate SPI transfer */
+        SPI_transfer(handle->spiHandle, &transaction);
+
+        /* Wait for RDY pin to go low */
+        count = WaitForDataReady(handle);
     }
 
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
-
-    return status;
-}
-
-/***************************************************************************//**
- * @brief Sends 32 consecutive 1's on SPI in order to reset the part.
- *
- * @param None.
- *
- * @return  None.
-*******************************************************************************/
-
-void AD7799_Reset(AD7799_Handle handle)
-{
-    IArg key;
-    SPI_Transaction transaction;
-    uint32_t txBuf = 0xFFFFFFFF;
-    uint32_t rxBuf;
-
-    /* Initialize opcode transaction structure */
-    transaction.count = 4;
-    transaction.txBuf = (Ptr)&txBuf;
-    transaction.rxBuf = (Ptr)&rxBuf;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
-
-    /* Assert the chip select low  */
-    GPIO_write(handle->gpioCS, PIN_LOW);
-
-    /* Initiate SPI transfer */
-    SPI_transfer(handle->spiHandle, &transaction);
-
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
-
-    /* Settling time after chip reset */
-    Task_sleep(100);
 }
 
 /***************************************************************************//**
