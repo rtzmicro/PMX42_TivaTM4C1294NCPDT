@@ -303,7 +303,6 @@ bool Init_IO_Cards(void)
     }
     else
     {
-#if 1
         /* Set gain to 1 */
         AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
         /* use AIN1(+) - AIN1(-) */
@@ -312,7 +311,9 @@ bool Init_IO_Cards(void)
         AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
         /* Set the reference detect */
         AD7799_SetReference(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
-#endif
+
+        /* Set for continuous conversion mode */
+        //AD7799_SetMode(g_sys.AD7799HandleSlot2, AD7799_MODE_CONT);
     }
 
     System_flush();
@@ -340,6 +341,7 @@ void NDKStackBeginHook(void)
 
 Void CommandTaskFxn(UArg arg0, UArg arg1)
 {
+    uint32_t data;
     Error_Block eb;
 	Task_Params taskParams;
     CommandMessage msgCmd;
@@ -388,7 +390,14 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
         {
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED1);
-    		continue;
+
+            /* Check if ADC has data ready to read */
+            if (AD7799_IsReady(g_sys.AD7799HandleSlot2))
+            {
+                data = AD7799_ReadData(g_sys.AD7799HandleSlot2, 0);
+            }
+
+            continue;
         }
 
         if (msgCmd.command == BUTTONPRESS)

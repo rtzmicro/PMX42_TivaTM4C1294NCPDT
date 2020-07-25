@@ -165,7 +165,7 @@ Void AD7799_Params_init(AD7799_Params *params)
  * @return data - The value of the selected register register.
 *******************************************************************************/
 
-static uint32_t AD7799_GetRegisterValue(
+uint32_t AD7799_GetRegisterValue(
         AD7799_Handle handle,
         uint8_t regAddress,
         uint8_t size
@@ -251,7 +251,7 @@ static uint32_t AD7799_GetRegisterValue(
  * @return  None.
 *******************************************************************************/
 
-static void AD7799_SetRegisterValue(
+void AD7799_SetRegisterValue(
         AD7799_Handle handle,
         uint8_t regAddress,
         uint32_t regValue,
@@ -527,6 +527,33 @@ void AD7799_SetReference(AD7799_Handle handle, uint8_t state)
 
     /* Exit the critical section */
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+}
+
+/******************************************************************************
+ * Read the 24-bit data word register
+ ******************************************************************************/
+
+uint32_t AD7799_ReadData(
+        AD7799_Handle handle,
+        uint8_t channel
+        )
+{
+    IArg key;
+    uint32_t data;
+
+    /* Select channel zero and read the data */
+    AD7799_SetChannel(handle, channel);
+
+    /* Enter the critical section */
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    /* Read the 24-bit ADC data register */
+    data = AD7799_GetRegisterValue(handle, AD7799_REG_DATA | AD7799_COMM_CREAD, 3);
+
+    /* Exit the critical section */
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+
+    return data;
 }
 
 /* End-Of-File */

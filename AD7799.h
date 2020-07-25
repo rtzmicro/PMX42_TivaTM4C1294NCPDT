@@ -278,4 +278,7 @@ void AD7799_SetGain(AD7799_Handle handle, uint32_t gain);
 /* Enables or disables the reference detect function. */
 void AD7799_SetReference(AD7799_Handle handle, uint8_t state);
 
+/* Read the 24-bit data register */
+uint32_t AD7799_ReadData(AD7799_Handle handle, uint8_t channel);
+
 #endif	// _AD7799_H_
