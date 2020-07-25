@@ -80,7 +80,6 @@ const AD7799_Params AD7799_defaultParams = {
 
 /*** Static Function Prototypes ***/
 
-static uint32_t WaitForDataReady(AD7799_Handle handle);
 static Void AD7799_destruct(AD7799_Handle handle);
 static void AD7799_SetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint32_t regValue, uint8_t size);
 static uint32_t AD7799_GetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint8_t size);
@@ -158,23 +157,6 @@ Void AD7799_Params_init(AD7799_Params *params)
 }
 
 /***************************************************************************//**
- * @brief Poll the RDY bit on the GPIO to see if data word is ready.
- *
- * @param handle - Handle to AD7799 object
- *
- * @return data - The poll count
-*******************************************************************************/
-
-static uint32_t WaitForDataReady(AD7799_Handle handle)
-{
-    uint32_t count = 0;
-
-    while (GPIO_read(handle->gpioRDY) == 0);
-
-    return count;
-}
-
-/***************************************************************************//**
  * @brief Reads the value of the selected register
  *
  * @param regAddress - The address of the register to read.
@@ -191,7 +173,7 @@ static uint32_t AD7799_GetRegisterValue(
 {
     uint8_t txBuf[4];
     uint8_t rxBuf[4];
-    uint32_t i, count;
+    uint32_t i;
     uint32_t regval = 0;
     SPI_Transaction transaction;
 
@@ -213,7 +195,8 @@ static uint32_t AD7799_GetRegisterValue(
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
 
-    count = WaitForDataReady(handle);
+    /* Wait for data ready RDY */
+    while (GPIO_read(handle->gpioRDY) == 0);
 
     /*
      * Now read back any response data
@@ -230,8 +213,8 @@ static uint32_t AD7799_GetRegisterValue(
         /* Initiate SPI transfer */
         SPI_transfer(handle->spiHandle, &transaction);
 
-        /* Wait for RDY pin to go low */
-        count = WaitForDataReady(handle);
+        /* Wait for data ready RDY */
+        while (GPIO_read(handle->gpioRDY) == 0);
     }
 
     /* Release chip select to high */
@@ -277,7 +260,7 @@ static void AD7799_SetRegisterValue(
 {
     uint8_t txBuf[5];
     uint8_t rxBuf[5];
-    uint32_t i, count;
+    uint32_t i;
     SPI_Transaction transaction;
 
     memset(txBuf, 0, sizeof(txBuf));
@@ -294,8 +277,8 @@ static void AD7799_SetRegisterValue(
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
 
-    /* Wait for RDY pin to go low */
-    count = WaitForDataReady(handle);
+    /* Wait for data ready RDY */
+    while (GPIO_read(handle->gpioRDY) == 0);
 
     /*
      * Now write any register data
@@ -330,8 +313,8 @@ static void AD7799_SetRegisterValue(
         /* Initiate SPI transfer */
         SPI_transfer(handle->spiHandle, &transaction);
 
-        /* Wait for RDY pin to go low */
-        count = WaitForDataReady(handle);
+        /* Wait for data ready RDY */
+        while (GPIO_read(handle->gpioRDY) == 0);
     }
 
     /* Release chip select to high */
@@ -355,7 +338,7 @@ uint8_t AD7799_IsReady(AD7799_Handle handle)
     /* Enter the critical section */
     key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
-    rdy = AD7799_GetRegisterValue(handle, AD7799_REG_STAT, 1) & 0x80;
+    rdy = AD7799_GetRegisterValue(handle, AD7799_REG_STAT, 1) & AD7799_STAT_RDY;
 
     /* Exit the critical section */
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
@@ -371,13 +354,12 @@ uint8_t AD7799_IsReady(AD7799_Handle handle)
  * @return  None.
 *******************************************************************************/
 
-uint32_t AD7799_Reset(AD7799_Handle handle)
+void AD7799_Reset(AD7799_Handle handle)
 {
     IArg key;
     SPI_Transaction transaction;
     uint32_t txBuf = 0xFFFFFFFF;
     uint32_t rxBuf;
-    uint32_t count;
 
     /* Initialize opcode transaction structure */
     transaction.count = 4;
@@ -399,12 +381,8 @@ uint32_t AD7799_Reset(AD7799_Handle handle)
     /* Exit the critical section */
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 
-    count = WaitForDataReady(handle);
-
     /* Settling time after chip reset */
     Task_sleep(100);
-
-    return count;
 }
 
 /***************************************************************************//**

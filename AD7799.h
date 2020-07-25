@@ -261,7 +261,7 @@ Void AD7799_Params_init(AD7799_Params *params);
 uint8_t AD7799_Init(AD7799_Handle handle);
 
 /* Sends 32 consecutive 1's on SPI in order to reset the part. */
-uint32_t AD7799_Reset(AD7799_Handle handle);
+void AD7799_Reset(AD7799_Handle handle);
 
 /* Sets the operating mode of AD7799. */
 void AD7799_SetMode(AD7799_Handle handle, uint32_t mode);
