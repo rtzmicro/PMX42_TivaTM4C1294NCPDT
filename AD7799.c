@@ -158,82 +158,6 @@ Void AD7799_Params_init(AD7799_Params *params)
 }
 
 /***************************************************************************//**
- * @brief Sends 32 consecutive 1's on SPI in order to reset the part.
- *
- * @param None.
- *
- * @return  None.
-*******************************************************************************/
-
-uint32_t AD7799_Reset(AD7799_Handle handle)
-{
-    IArg key;
-    SPI_Transaction transaction;
-    uint32_t txBuf = 0xFFFFFFFF;
-    uint32_t rxBuf;
-    uint32_t count;
-
-    /* Initialize opcode transaction structure */
-    transaction.count = 4;
-    transaction.txBuf = (Ptr)&txBuf;
-    transaction.rxBuf = (Ptr)&rxBuf;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
-
-    /* Assert the chip select low  */
-    GPIO_write(handle->gpioCS, PIN_LOW);
-
-    /* Initiate SPI transfer */
-    SPI_transfer(handle->spiHandle, &transaction);
-
-    /* Release chip select to high */
-    GPIO_write(handle->gpioCS, PIN_HIGH);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
-
-    count = WaitForDataReady(handle);
-
-    /* Settling time after chip reset */
-    Task_sleep(100);
-
-    return count;
-}
-
-/***************************************************************************//**
- * @brief Initializes the AD7799 and checks if the device is present.
- *
- * @param None.
- *
- * @return status - Result of the initialization procedure.
- *                  Example: 1 - if initialization was successful (ID is 0x0B).
- *                           0 - if initialization was unsuccessful.
-*******************************************************************************/
-
-uint8_t AD7799_Init(AD7799_Handle handle)
-{
-    uint32_t reg;
-    uint8_t status = 0x1;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
-
-    reg = AD7799_GetRegisterValue(handle, AD7799_REG_ID, 1);
-
-    if ((reg & 0x0F) != AD7799_ID)
-    {
-        status = 0x0;
-    }
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
-
-    return status;
-}
-
-/***************************************************************************//**
  * @brief Poll the RDY bit on the GPIO to see if data word is ready.
  *
  * @param handle - Handle to AD7799 object
@@ -243,27 +167,11 @@ uint8_t AD7799_Init(AD7799_Handle handle)
 
 static uint32_t WaitForDataReady(AD7799_Handle handle)
 {
-#if 0
     uint32_t count = 0;
-
-    uint32_t i;
-
-    /* Wait for RDY pin to go low */
-
-    for (i=1; i <= 100000; i++)
-    {
-        /* Wait for DRDY to go low */
-        if (GPIO_read(handle->gpioRDY) == 0)
-        {
-            count = i;
-            break;
-        }
-    }
-#endif
 
     while (GPIO_read(handle->gpioRDY) == 0);
 
-    return 0;
+    return count;
 }
 
 /***************************************************************************//**
@@ -435,7 +343,7 @@ static void AD7799_SetRegisterValue(
  *
  * @param None.
  *
- * @return rdy	- 0 if RDY is 1.
+ * @return rdy  - 0 if RDY is 1.
  *              - 1 if RDY is 0.
 *******************************************************************************/
 
@@ -451,9 +359,87 @@ uint8_t AD7799_IsReady(AD7799_Handle handle)
 
     /* Exit the critical section */
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
-	
-	return(!rdy);
+
+    return(!rdy);
 }
+
+/***************************************************************************//**
+ * @brief Sends 32 consecutive 1's on SPI in order to reset the part.
+ *
+ * @param None.
+ *
+ * @return  None.
+*******************************************************************************/
+
+uint32_t AD7799_Reset(AD7799_Handle handle)
+{
+    IArg key;
+    SPI_Transaction transaction;
+    uint32_t txBuf = 0xFFFFFFFF;
+    uint32_t rxBuf;
+    uint32_t count;
+
+    /* Initialize opcode transaction structure */
+    transaction.count = 4;
+    transaction.txBuf = (Ptr)&txBuf;
+    transaction.rxBuf = (Ptr)&rxBuf;
+
+    /* Enter the critical section */
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    /* Assert the chip select low */
+    GPIO_write(handle->gpioCS, PIN_LOW);
+
+    /* Initiate SPI transfer */
+    SPI_transfer(handle->spiHandle, &transaction);
+
+    /* Release chip select to high */
+    GPIO_write(handle->gpioCS, PIN_HIGH);
+
+    /* Exit the critical section */
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+
+    count = WaitForDataReady(handle);
+
+    /* Settling time after chip reset */
+    Task_sleep(100);
+
+    return count;
+}
+
+/***************************************************************************//**
+ * @brief Initializes the AD7799 and checks if the device is present.
+ *
+ * @param None.
+ *
+ * @return status - Result of the initialization procedure.
+ *                  Example: 1 - if initialization was successful (ID is 0x0B).
+ *                           0 - if initialization was unsuccessful.
+*******************************************************************************/
+
+uint8_t AD7799_Init(AD7799_Handle handle)
+{
+    uint32_t reg;
+    uint8_t status = 0x1;
+    IArg key;
+
+    /* Enter the critical section */
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    reg = AD7799_GetRegisterValue(handle, AD7799_REG_ID, 1);
+
+    if ((reg & 0x0F) != AD7799_ID)
+    {
+        status = 0x0;
+    }
+
+    /* Exit the critical section */
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+
+    return status;
+}
+
+
 
 /***************************************************************************//**
  * @brief Sets the operating mode of AD7799.

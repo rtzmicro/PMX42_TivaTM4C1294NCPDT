@@ -124,11 +124,18 @@ void MCP79410_Initialize(MCP79410_Handle handle)
     MCP79410_EnableVbat(handle);                        // Enable battery backup
     
     time_t t = time(NULL);
-    struct tm tm = *localtime(&t);  
-    RTCC_Struct curr_time = {tm.tm_sec,tm.tm_min,tm.tm_hour,tm.tm_wday,tm.tm_mday,tm.tm_mon+1, ((tm.tm_year+1900)-2000)};
-    #ifdef __DEBUG_RTCC__
-        printf("MCP79410_Initialize DEBUG now: %d-%d-%d %d:%d:%d\n", tm.tm_year, tm.tm_mon+1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);    
-    #endif
+    struct tm tm = *localtime(&t);
+
+    RTCC_Struct curr_time = {
+        tm.tm_sec,
+        tm.tm_min,
+        tm.tm_hour,
+        tm.tm_wday,
+        tm.tm_mday,
+        tm.tm_mon+1,
+        (tm.tm_year + 1900) - 2000
+    };
+
     MCP79410_SetTime(handle, &curr_time);
     MCP79410_EnableOscillator(handle);                  // Start clock by enabling oscillator
 }
@@ -158,25 +165,21 @@ uint8_t MCP79410_IsRunning(MCP79410_Handle handle)
         return FALSE;
 }
 
-RTCC_Struct* MCP79410_GetTime(MCP79410_Handle handle)
+void MCP79410_GetTime(MCP79410_Handle handle, RTCC_Struct *time)
 {
-    RTCC_Struct *current_time = (RTCC_Struct *) malloc(sizeof(RTCC_Struct));
-    
-    current_time->sec     = MCP79410_bcd2dec(MCP79410_Read(handle, SEC) & (~START_32KHZ));
-    current_time->min     = MCP79410_bcd2dec(MCP79410_Read(handle, MIN));
+    time->sec     = MCP79410_bcd2dec(MCP79410_Read(handle, SEC) & (~START_32KHZ));
+    time->min     = MCP79410_bcd2dec(MCP79410_Read(handle, MIN));
     
     uint8_t hour_t = MCP79410_Read(handle, HOUR);
 
     // hour is in 24 hour format
     hour_t = ((hour_t & HOUR_12) == HOUR_12)? (hour_t & 0x1F) : (hour_t & 0x3F);
     
-    current_time->hour    = MCP79410_bcd2dec(hour_t);
-    current_time->weekday = MCP79410_bcd2dec(MCP79410_Read(handle, DAY) & ~(OSCRUN|PWRFAIL|VBATEN));
-    current_time->date    = MCP79410_bcd2dec(MCP79410_Read(handle, DATE));
-    current_time->month   = MCP79410_bcd2dec(MCP79410_Read(handle, MNTH) & ~(LPYR));
-    current_time->year    = MCP79410_bcd2dec(MCP79410_Read(handle, YEAR));
-    
-    return current_time;
+    time->hour    = MCP79410_bcd2dec(hour_t);
+    time->weekday = MCP79410_bcd2dec(MCP79410_Read(handle, DAY) & ~(OSCRUN|PWRFAIL|VBATEN));
+    time->date    = MCP79410_bcd2dec(MCP79410_Read(handle, DATE));
+    time->month   = MCP79410_bcd2dec(MCP79410_Read(handle, MNTH) & ~(LPYR));
+    time->year    = MCP79410_bcd2dec(MCP79410_Read(handle, YEAR));
 }
 
 void MCP79410_SetTime(MCP79410_Handle handle, RTCC_Struct *time)

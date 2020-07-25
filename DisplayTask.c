@@ -197,11 +197,7 @@ void DrawUV(void)
     uint32_t width;
     uint32_t spacing;
     tRectangle rect;
-    float uvlevel[UV_CHANNELS];
     static char buf[128];
-
-    for (i=0; i < UV_CHANNELS; i++)
-        uvlevel[i] = 0.0f;
 
     x = 0;
     y = 0;
