@@ -196,7 +196,7 @@ uint32_t AD7799_GetRegisterValue(
     SPI_transfer(handle->spiHandle, &transaction);
 
     /* Wait for data ready RDY */
-    while (GPIO_read(handle->gpioRDY) == 0);
+    while (GPIO_read(handle->gpioRDY) != 0);
 
     /*
      * Now read back any response data
@@ -214,7 +214,7 @@ uint32_t AD7799_GetRegisterValue(
         SPI_transfer(handle->spiHandle, &transaction);
 
         /* Wait for data ready RDY */
-        while (GPIO_read(handle->gpioRDY) == 0);
+        while (GPIO_read(handle->gpioRDY) != 0);
     }
 
     /* Release chip select to high */
