@@ -196,7 +196,7 @@ uint32_t AD7799_GetRegisterValue(
     SPI_transfer(handle->spiHandle, &transaction);
 
     /* Wait for data ready RDY */
-    while (GPIO_read(handle->gpioRDY) != 0);
+    while (GPIO_read(handle->gpioRDY) == 0);
 
     /*
      * Now read back any response data
@@ -214,7 +214,7 @@ uint32_t AD7799_GetRegisterValue(
         SPI_transfer(handle->spiHandle, &transaction);
 
         /* Wait for data ready RDY */
-        while (GPIO_read(handle->gpioRDY) != 0);
+        while (GPIO_read(handle->gpioRDY) == 0);
     }
 
     /* Release chip select to high */
@@ -529,6 +529,26 @@ void AD7799_SetReference(AD7799_Handle handle, uint8_t state)
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 }
 
+/***************************************************************************//**
+ * Reads status register.
+ *******************************************************************************/
+
+uint8_t AD7799_ReadStatus(AD7799_Handle handle)
+{
+    uint8_t status;
+    IArg key;
+
+    /* Enter the critical section */
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    status = AD7799_GetRegisterValue(handle, AD7799_REG_STAT, 1);
+
+    /* Exit the critical section */
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+
+    return status;
+}
+
 /******************************************************************************
  * Read the 24-bit data word register
  ******************************************************************************/
@@ -542,13 +562,13 @@ uint32_t AD7799_ReadData(
     uint32_t data;
 
     /* Select channel zero and read the data */
-    AD7799_SetChannel(handle, channel);
+    //AD7799_SetChannel(handle, channel);
 
     /* Enter the critical section */
     key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
     /* Read the 24-bit ADC data register */
-    data = AD7799_GetRegisterValue(handle, AD7799_REG_DATA | AD7799_COMM_CREAD, 3);
+    data = AD7799_GetRegisterValue(handle, AD7799_REG_DATA, 3);
 
     /* Exit the critical section */
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);

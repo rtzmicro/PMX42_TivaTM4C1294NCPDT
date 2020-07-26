@@ -247,6 +247,8 @@ bool Init_Peripherals(void)
 
 bool Init_IO_Cards(void)
 {
+    uint8_t status;
+
     /* This enables the DIVSCLK output pin on PQ4
      * and generates a 1.2 Mhz clock signal on the.
      * expansion header and pin 16 of the edge
@@ -303,17 +305,16 @@ bool Init_IO_Cards(void)
     }
     else
     {
-        /* Set gain to 1 */
-        AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
-        /* use AIN1(+) - AIN1(-) */
-        AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
-        /* use AIN2(+) - AIN2(-) */
-        AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
-        /* Set the reference detect */
-        AD7799_SetReference(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
+        status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
 
-        /* Set for continuous conversion mode */
-        //AD7799_SetMode(g_sys.AD7799HandleSlot2, AD7799_MODE_CONT);
+        /* Set gain to 1 */
+        //AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
+        /* use AIN1(+) - AIN1(-) */
+        //AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
+        /* use AIN2(+) - AIN2(-) */
+        //AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
+        /* Set the reference detect */
+        //AD7799_SetReference(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
     }
 
     System_flush();
@@ -341,7 +342,8 @@ void NDKStackBeginHook(void)
 
 Void CommandTaskFxn(UArg arg0, UArg arg1)
 {
-    uint32_t data;
+    uint8_t status = 0;
+    uint32_t data = 0;
     Error_Block eb;
 	Task_Params taskParams;
     CommandMessage msgCmd;
@@ -391,12 +393,12 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED1);
 
-            /* Check if ADC has data ready to read */
-            if (AD7799_IsReady(g_sys.AD7799HandleSlot2))
-            {
-                data = AD7799_ReadData(g_sys.AD7799HandleSlot2, 0);
-            }
+            status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
 
+            data = AD7799_ReadData(g_sys.AD7799HandleSlot2, 0);
+
+            System_printf("Stat=%1x Data=%x\n", status, data);
+            System_flush();
             continue;
         }
 
