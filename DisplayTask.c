@@ -248,7 +248,7 @@ void DrawUV(void)
         sprintf(buf, "%d: %.1f", i, (float)val);
         GrStringDraw(&g_context, buf, -1, x, y, 0);
 
-        rect.i16XMin = x + 50;
+        rect.i16XMin = x + 75;
         rect.i16YMin = y;
         rect.i16XMax = SCREEN_WIDTH - 1;
         rect.i16YMax = (height - 2) + rect.i16YMin;
