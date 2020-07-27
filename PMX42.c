@@ -308,13 +308,13 @@ bool Init_IO_Cards(void)
         status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
 
         /* Set gain to 1 */
-        //AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
+        AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
         /* use AIN1(+) - AIN1(-) */
-        //AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
+        AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
         /* use AIN2(+) - AIN2(-) */
-        //AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
+        AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
         /* Set the reference detect */
-        //AD7799_SetReference(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
+        AD7799_SetReference(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
     }
 
     System_flush();

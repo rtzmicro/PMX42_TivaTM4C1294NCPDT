@@ -214,7 +214,7 @@ uint32_t AD7799_GetRegisterValue(
         SPI_transfer(handle->spiHandle, &transaction);
 
         /* Wait for data ready RDY */
-        while (GPIO_read(handle->gpioRDY) == 0);
+        //while (GPIO_read(handle->gpioRDY) == 0);
     }
 
     /* Release chip select to high */
@@ -306,7 +306,7 @@ void AD7799_SetRegisterValue(
 
     for(i=0; i < size; i++)
     {
-        transaction.count = size;
+        transaction.count = 1;
         transaction.txBuf = (Ptr)&txBuf[i];
         transaction.rxBuf = (Ptr)&rxBuf[i];
 
