@@ -342,6 +342,7 @@ void NDKStackBeginHook(void)
 
 Void CommandTaskFxn(UArg arg0, UArg arg1)
 {
+    uint32_t i;
     uint8_t status = 0;
     uint32_t data = 0;
     Error_Block eb;
@@ -373,6 +374,10 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Initialize the USB module for device mode */
     USB_init();
 
+    /* Zero out DAC level array */
+    for (i=0; i < MAX_CHANNELS; i++)
+        g_sys.dacLevel[i] = 0;
+
     /*
      * Create the display task
      */
@@ -395,9 +400,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
             status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
 
-            data = AD7799_ReadData(g_sys.AD7799HandleSlot2, 0);
+            g_sys.dacLevel[1] = AD7799_ReadData(g_sys.AD7799HandleSlot2, 0);
 
-            System_printf("Stat=%1x Data=%x\n", status, data);
+            System_printf("Stat=%1x Data=%x\n", status, g_sys.dacLevel[1]);
             System_flush();
             continue;
         }

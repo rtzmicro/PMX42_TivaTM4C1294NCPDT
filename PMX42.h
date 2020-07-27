@@ -17,6 +17,8 @@
 /* Helper Macros */
 #define CELCIUS_TO_FAHRENHEIT(c)    ( (float)c * 1.8f + 32.0f )
 
+#define MAX_CHANNELS        4           /* number of DAC channels */
+
 //*****************************************************************************
 // CONSTANTS AND CONFIGURATION
 //*****************************************************************************
@@ -49,6 +51,9 @@
 #define MAKEREV(v, r)       ((v << 16) | (r & 0xFFFF))
 
 
+#define ADC_FULLSCALE       0xFFFFFF
+#define ADC_VREF            4.096f
+
 //*****************************************************************************
 // 128-BIT GUID Structure
 //*****************************************************************************
@@ -76,11 +81,10 @@ typedef struct _SYSDATA
     char            ipAddr[32];             /* IP address from DHCP       */
     /* global runtime data */
     SPI_Handle      spi12;                  /* SPI handle for slots 1 & 2 */
+    SPI_Handle      spi34;                  /* SPI handle for slots 3 & 4 */
     AD7799_Handle   AD7799HandleSlot1;
     AD7799_Handle   AD7799HandleSlot2;
-
-    SPI_Handle      spi34;                  /* SPI handle for slots 3 & 4 */
-
+    uint32_t        dacLevel[MAX_CHANNELS]; /* ADC DAC levels */
 } SYSDATA;
 
 //*****************************************************************************

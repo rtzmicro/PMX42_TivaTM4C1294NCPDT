@@ -198,6 +198,9 @@ void DrawUV(void)
     uint32_t spacing;
     tRectangle rect;
     static char buf[128];
+    float level;
+    float power;
+    float v;
 
     x = 0;
     y = 0;
@@ -241,11 +244,20 @@ void DrawUV(void)
     GrContextFontSet(&g_context,  g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
+
+
     for (i=0; i < UV_CHANNELS; i++)
     {
-        int val = rand() % 8;
+        level = (float)g_sys.dacLevel[i];
 
-        sprintf(buf, "%d: %.1f", i, (float)val);
+        /* The ADC vref is 4.096V */
+        v = ADC_VREF / level;
+
+        /* GUVC-T21GH sensor Vout = 0.71 x UV-C power in mW/cm2 */
+        power = v / 0.71f;
+
+        //sprintf(buf, "%d: %.1f", i, power);
+        sprintf(buf, "%d: %6x", i, g_sys.dacLevel[i]);
         GrStringDraw(&g_context, buf, -1, x, y, 0);
 
         rect.i16XMin = x + 75;
@@ -253,7 +265,7 @@ void DrawUV(void)
         rect.i16XMax = SCREEN_WIDTH - 1;
         rect.i16YMax = (height - 2) + rect.i16YMin;
 
-        float percentage = ((float)val / 7.0f) * 100.0f;
+        float percentage = (power / 7.0f) * 100.0f;
 
         DrawBarGraph(rect, percentage);
 
