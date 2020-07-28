@@ -187,6 +187,7 @@ void DrawScreen(uint32_t uScreenNum)
     GrFlush(&g_context);
 }
 
+
 void DrawUV(void)
 {
     int i;
@@ -251,7 +252,7 @@ void DrawUV(void)
         level = (float)g_sys.dacLevel[i];
 
         /* The ADC vref is 4.096V */
-        v = ADC_VREF / level;
+        v = ADC_VSTEP * level;
 
         /* GUVC-T21GH sensor Vout = 0.71 x UV-C power in mW/cm2 */
         power = v / 0.71f;
