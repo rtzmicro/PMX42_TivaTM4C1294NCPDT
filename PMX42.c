@@ -247,8 +247,6 @@ bool Init_Peripherals(void)
 
 bool Init_IO_Cards(void)
 {
-    uint8_t status;
-
     /* This enables the DIVSCLK output pin on PQ4
      * and generates a 1.2 Mhz clock signal on the.
      * expansion header and pin 16 of the edge
@@ -305,8 +303,6 @@ bool Init_IO_Cards(void)
     }
     else
     {
-        status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
-
         /* Set gain to 1 */
         AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
         /* use AIN1(+) - AIN1(-) */
@@ -344,7 +340,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 {
     uint32_t i;
     uint8_t status = 0;
-    uint32_t data = 0;
     Error_Block eb;
 	Task_Params taskParams;
     CommandMessage msgCmd;

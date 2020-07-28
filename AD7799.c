@@ -1,8 +1,8 @@
-/***************************************************************************//**
+/******************************************************************************
  *   @file   AD7799.c
  *   @brief  Implementation of AD7799 Driver.
  *   @author Bancisor MIhai
-********************************************************************************
+ ******************************************************************************
  * Copyright 2012(c) Analog Devices, Inc.
  *
  * All rights reserved.
@@ -36,9 +36,9 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
-********************************************************************************
+ ******************************************************************************
  *   SVN Revision: 577
-*******************************************************************************/
+ ******************************************************************************/
 
 /******************************************************************************/
 /* Include Files                                                              */
@@ -84,9 +84,10 @@ static Void AD7799_destruct(AD7799_Handle handle);
 static void AD7799_SetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint32_t regValue, uint8_t size);
 static uint32_t AD7799_GetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint8_t size);
 
-/*
- *  ======== AD7799_construct ========
- */
+/******************************************************************************
+ * AD7799_construct
+ ******************************************************************************/
+ 
 AD7799_Handle AD7799_construct(
         AD7799_Object *obj,
         SPI_Handle spiHandle,
@@ -104,9 +105,10 @@ AD7799_Handle AD7799_construct(
     return (AD7799_Handle)obj;
 }
 
-/*
- *  ======== AD7799_create ========
- */
+/******************************************************************************
+ * AD7799_create
+ ******************************************************************************/
+ 
 AD7799_Handle AD7799_create(
         SPI_Handle spiHandle,
         uint32_t gpioCSIndex,
@@ -129,9 +131,10 @@ AD7799_Handle AD7799_create(
     return handle;
 }
 
-/*
- *  ======== AD7799_delete ========
- */
+/******************************************************************************
+ * AD7799_delete
+ ******************************************************************************/
+
 Void AD7799_delete(AD7799_Handle handle)
 {
     AD7799_destruct(handle);
@@ -139,9 +142,10 @@ Void AD7799_delete(AD7799_Handle handle)
     Memory_free(NULL, handle, sizeof(AD7799_Object));
 }
 
-/*
- *  ======== AD7799_destruct ========
- */
+/******************************************************************************
+ * AD7799_destruct
+ ******************************************************************************/
+
 Void AD7799_destruct(AD7799_Handle handle)
 {
     Assert_isTrue((handle != NULL), NULL);
@@ -149,6 +153,10 @@ Void AD7799_destruct(AD7799_Handle handle)
     GateMutex_destruct(&(handle->gate));
 }
 
+/******************************************************************************
+ *
+ ******************************************************************************/
+ 
 Void AD7799_Params_init(AD7799_Params *params)
 {
     Assert_isTrue(params != NULL, NULL);
@@ -156,14 +164,14 @@ Void AD7799_Params_init(AD7799_Params *params)
     *params = AD7799_defaultParams;
 }
 
-/***************************************************************************//**
+/******************************************************************************
  * @brief Reads the value of the selected register
  *
  * @param regAddress - The address of the register to read.
  * @param size - The size of the register to read.
  *
  * @return data - The value of the selected register register.
-*******************************************************************************/
+ ******************************************************************************/
 
 uint32_t AD7799_GetRegisterValue(
         AD7799_Handle handle,
@@ -241,7 +249,7 @@ uint32_t AD7799_GetRegisterValue(
     return regval;
 }
 
-/***************************************************************************//**
+/******************************************************************************
  * @brief Writes the value to the register
  *
  * @param -  regAddress - The address of the register to write to.
@@ -249,7 +257,7 @@ uint32_t AD7799_GetRegisterValue(
  * @param -  size - The size of the register to write.
  *
  * @return  None.
-*******************************************************************************/
+ ******************************************************************************/
 
 void AD7799_SetRegisterValue(
         AD7799_Handle handle,
@@ -321,14 +329,14 @@ void AD7799_SetRegisterValue(
     GPIO_write(handle->gpioCS, PIN_HIGH);
 }
 
-/***************************************************************************//**
+/******************************************************************************
  * @brief Reads /RDY bit of status reg.
  *
  * @param None.
  *
  * @return rdy  - 0 if RDY is 1.
  *              - 1 if RDY is 0.
-*******************************************************************************/
+ ******************************************************************************/
 
 uint8_t AD7799_IsReady(AD7799_Handle handle)
 {
@@ -346,13 +354,13 @@ uint8_t AD7799_IsReady(AD7799_Handle handle)
     return(!rdy);
 }
 
-/***************************************************************************//**
+/******************************************************************************
  * @brief Sends 32 consecutive 1's on SPI in order to reset the part.
  *
  * @param None.
  *
  * @return  None.
-*******************************************************************************/
+ ******************************************************************************/
 
 void AD7799_Reset(AD7799_Handle handle)
 {
@@ -385,7 +393,7 @@ void AD7799_Reset(AD7799_Handle handle)
     Task_sleep(100);
 }
 
-/***************************************************************************//**
+/******************************************************************************
  * @brief Initializes the AD7799 and checks if the device is present.
  *
  * @param None.
@@ -393,7 +401,7 @@ void AD7799_Reset(AD7799_Handle handle)
  * @return status - Result of the initialization procedure.
  *                  Example: 1 - if initialization was successful (ID is 0x0B).
  *                           0 - if initialization was unsuccessful.
-*******************************************************************************/
+ ******************************************************************************/
 
 uint8_t AD7799_Init(AD7799_Handle handle)
 {
@@ -417,15 +425,13 @@ uint8_t AD7799_Init(AD7799_Handle handle)
     return status;
 }
 
-
-
-/***************************************************************************//**
+/******************************************************************************
  * @brief Sets the operating mode of AD7799.
  *
  * @param mode - Mode of operation.
  *
  * @return  None.    
-*******************************************************************************/
+ ******************************************************************************/
 
 void AD7799_SetMode(AD7799_Handle handle, uint32_t mode)
 {
@@ -446,13 +452,13 @@ void AD7799_SetMode(AD7799_Handle handle, uint32_t mode)
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 }
 
-/***************************************************************************//**
+/******************************************************************************
  * @brief Selects the channel of AD7799.
  *
  * @param  channel - ADC channel selection.
  *
  * @return  None.    
-*******************************************************************************/
+ ******************************************************************************/
 
 void AD7799_SetChannel(AD7799_Handle handle, uint32_t channel)
 {
@@ -473,13 +479,13 @@ void AD7799_SetChannel(AD7799_Handle handle, uint32_t channel)
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 }
 
-/***************************************************************************//**
+/******************************************************************************
  * @brief  Sets the gain of the In-Amp.
  *
  * @param  gain - Gain.
  *
  * @return  None.    
-*******************************************************************************/
+ ******************************************************************************/
 
 void AD7799_SetGain(AD7799_Handle handle, uint32_t gain)
 {
@@ -500,7 +506,7 @@ void AD7799_SetGain(AD7799_Handle handle, uint32_t gain)
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 }
 
-/***************************************************************************//**
+/******************************************************************************
  * @brief Enables or disables the reference detect function.
  *
  * @param state - State of the reference detect function.
@@ -508,7 +514,7 @@ void AD7799_SetGain(AD7799_Handle handle, uint32_t gain)
  *                        1	- Reference detect enabled.
  *
  * @return None.    
-*******************************************************************************/
+ ******************************************************************************/
 
 void AD7799_SetReference(AD7799_Handle handle, uint8_t state)
 {
@@ -529,10 +535,56 @@ void AD7799_SetReference(AD7799_Handle handle, uint8_t state)
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 }
 
-/***************************************************************************//**
- * Reads status register.
- *******************************************************************************/
+/******************************************************************************
+ *
+ ******************************************************************************/
 
+void AD7799_SetUnipolar(AD7799_Handle handle, uint8_t state)
+{
+    uint32_t command = 0;
+    IArg key;
+
+    /* Enter the critical section */
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    command = AD7799_GetRegisterValue(handle, AD7799_REG_CONF, 2);
+
+    command &= ~AD7799_CONF_UNIPOLAR(1);
+    command |= AD7799_CONF_UNIPOLAR(state);
+    
+    AD7799_SetRegisterValue(handle, AD7799_REG_CONF, command, 2);
+
+    /* Exit the critical section */
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+}
+
+/******************************************************************************
+ *
+ ******************************************************************************/
+
+void AD7799_SetBuffer(AD7799_Handle handle, uint8_t state)
+{
+    uint32_t command = 0;
+    IArg key;
+
+    /* Enter the critical section */
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    command = AD7799_GetRegisterValue(handle, AD7799_REG_CONF, 2);
+
+    command &= ~AD7799_CONF_BUF(1);
+    command |= AD7799_CONF_BUF(state);
+
+    AD7799_SetRegisterValue(handle, AD7799_REG_CONF, command, 2);
+
+    /* Exit the critical section */
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+}
+
+/******************************************************************************
+ *  Reads status register.
+ ******************************************************************************/
+ 
 uint8_t AD7799_ReadStatus(AD7799_Handle handle)
 {
     uint8_t status;

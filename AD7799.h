@@ -95,10 +95,10 @@
 
 /* Configuration Register Bit Designations (AD7799_REG_CONF) */
 #define AD7799_CONF_BO_EN	    (1 << 13) 			/* Burnout Current Enable */
-#define AD7799_CONF_UNIPOLAR    (1 << 12) 			/* Unipolar/Bipolar Enable */
+#define AD7799_CONF_UNIPOLAR(x) (((x) & 0x1) << 12) /* Unipolar/Bipolar Enable */
 #define AD7799_CONF_GAIN(x)	    (((x) & 0x7) << 8) 	/* Gain Select */
 #define AD7799_CONF_REFDET(x)   (((x) & 0x1) << 5) 	/* Reference detect function */
-#define AD7799_CONF_BUF		    (1 << 4) 			/* Buffered Mode Enable */
+#define AD7799_CONF_BUF(x)		(((x) & 0x1)  << 4) /* Buffered Mode Enable */
 #define AD7799_CONF_CHAN(x)	    ((x) & 0x7) 		/* Channel select */
 
 /* AD7799_CONF_GAIN(x) options */
@@ -277,6 +277,8 @@ void AD7799_SetGain(AD7799_Handle handle, uint32_t gain);
 
 /* Enables or disables the reference detect function. */
 void AD7799_SetReference(AD7799_Handle handle, uint8_t state);
+
+void AD7799_SetBuffer(AD7799_Handle handle, uint8_t state);
 
 /* Read the 24-bit data register */
 uint32_t AD7799_ReadData(AD7799_Handle handle, uint8_t channel);
