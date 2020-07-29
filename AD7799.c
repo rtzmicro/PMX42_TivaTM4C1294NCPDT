@@ -222,7 +222,8 @@ uint32_t AD7799_GetRegisterValue(
         SPI_transfer(handle->spiHandle, &transaction);
 
         /* Wait for data ready RDY */
-        //while (GPIO_read(handle->gpioRDY) == 0);
+        //while (GPIO_read(handle->gpioRDY) != 0);
+        Task_sleep(1);
     }
 
     /* Release chip select to high */
@@ -286,7 +287,7 @@ void AD7799_SetRegisterValue(
     SPI_transfer(handle->spiHandle, &transaction);
 
     /* Wait for data ready RDY */
-    while (GPIO_read(handle->gpioRDY) == 0);
+    while (GPIO_read(handle->gpioRDY) != 0);
 
     /*
      * Now write any register data
@@ -298,18 +299,18 @@ void AD7799_SetRegisterValue(
 
     if (size == 1)
     {
-        txBuf[1] = (uint8_t)regValue;
+        txBuf[0] = (uint8_t)regValue;
     }
     else if (size == 2)
     {
-        txBuf[1] = (uint8_t)(regValue >> 8);
-        txBuf[2] = (uint8_t)regValue;
+        txBuf[0] = (uint8_t)(regValue >> 8);
+        txBuf[1] = (uint8_t)regValue;
     }
     else if (size == 3)
     {
-        txBuf[1] = (uint8_t)(regValue >> 16);
-        txBuf[2] = (uint8_t)(regValue >> 8);
-        txBuf[3] = (uint8_t)regValue;
+        txBuf[0] = (uint8_t)(regValue >> 16);
+        txBuf[1] = (uint8_t)(regValue >> 8);
+        txBuf[2] = (uint8_t)regValue;
     }
 
     for(i=0; i < size; i++)
@@ -322,7 +323,7 @@ void AD7799_SetRegisterValue(
         SPI_transfer(handle->spiHandle, &transaction);
 
         /* Wait for data ready RDY */
-        while (GPIO_read(handle->gpioRDY) == 0);
+        while (GPIO_read(handle->gpioRDY) != 0);
     }
 
     /* Release chip select to high */
@@ -606,15 +607,11 @@ uint8_t AD7799_ReadStatus(AD7799_Handle handle)
  ******************************************************************************/
 
 uint32_t AD7799_ReadData(
-        AD7799_Handle handle,
-        uint8_t channel
+        AD7799_Handle handle
         )
 {
     IArg key;
     uint32_t data;
-
-    /* Select channel zero and read the data */
-    //AD7799_SetChannel(handle, channel);
 
     /* Enter the critical section */
     key = GateMutex_enter(GateMutex_handle(&(handle->gate)));

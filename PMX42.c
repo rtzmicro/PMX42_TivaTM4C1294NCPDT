@@ -305,12 +305,10 @@ bool Init_IO_Cards(void)
     {
         /* Set gain to 1 */
         AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
-        /* use AIN1(+) - AIN1(-) */
-        AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
-        /* use AIN2(+) - AIN2(-) */
-        AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
         /* Set the reference detect */
         AD7799_SetReference(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
+        /* Set for unipolar data reading */
+        AD7799_SetUnipolar(g_sys.AD7799HandleSlot2, 1);
     }
 
     System_flush();
@@ -393,12 +391,18 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED1);
 
-            status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
+            //status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
 
-            g_sys.dacLevel[1] = AD7799_ReadData(g_sys.AD7799HandleSlot2, 0);
+            /* Read ADC channel 1 data */
+            AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
+            g_sys.dacLevel[0] = AD7799_ReadData(g_sys.AD7799HandleSlot2);
 
-            System_printf("Stat=%1x Data=%x\n", status, g_sys.dacLevel[1]);
-            System_flush();
+            /* Read ADC channel 2 data */
+            //AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
+            //g_sys.dacLevel[1] = AD7799_ReadData(g_sys.AD7799HandleSlot2);
+
+            //System_printf("Stat=%1x Data=%x\n", status, g_sys.dacLevel[1]);
+            //System_flush();
             continue;
         }
 
