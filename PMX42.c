@@ -232,7 +232,7 @@ bool Init_Peripherals(void)
 
     if ((g_sys.spi34 = SPI_open(Board_SLOT34_SPI, &spiParams)) == NULL)
     {
-        System_printf("Error: Unable to open SPI2 port\n");
+        System_printf("Error: Unable to open SPI3 port\n");
         System_flush();
         return false;
     }

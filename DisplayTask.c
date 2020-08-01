@@ -257,7 +257,7 @@ void DrawUV(void)
         /* GUVC-T21GH sensor Vout = 0.71 x UV-C power in mW/cm2 */
         power = v / 0.71f;
 
-        //sprintf(buf, "%d: %.1f", i, power);
+        //sprintf(buf, "%d: %.2f", i, power);
         sprintf(buf, "%d: %6x", i, g_sys.dacLevel[i]);
         GrStringDraw(&g_context, buf, -1, x, y, 0);
 
