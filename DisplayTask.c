@@ -266,7 +266,8 @@ void DrawUV(void)
         rect.i16XMax = SCREEN_WIDTH - 1;
         rect.i16YMax = (height - 2) + rect.i16YMin;
 
-        float percentage = (power / 7.0f) * 100.0f;
+        //float percentage = (power / 7.0f) * 100.0f;
+        float percentage = (level / (float)ADC_FULLSCALE) * 100.0f;
 
         DrawBarGraph(rect, percentage);
 
