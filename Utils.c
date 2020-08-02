@@ -121,30 +121,16 @@ void EnableClockDivOutput(uint32_t div)
 // via I2C from the AT24MAC402 serial EPROM.
 //*****************************************************************************
 
-int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
+int ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
 {
     bool            ret;
     uint8_t         txByte;
-    I2C_Handle      handle;
     I2C_Params      params;
     I2C_Transaction i2cTransaction;
 
     /* default is all FF's  in case read fails*/
     memset(ui8SerialNumber, 0xFF, 16);
     memset(ui8MAC, 0xFF, 6);
-
-    I2C_Params_init(&params);
-    params.transferCallbackFxn = NULL;
-    params.transferMode = I2C_MODE_BLOCKING;
-    params.bitRate = I2C_100kHz;
-
-    handle = I2C_open(Board_I2C_AT24MAC402, &params);
-
-    if (!handle) {
-        System_printf("I2C did not open\n");
-        System_flush();
-        return 0;
-    }
 
     /* Note the Upper bit of the word address must be set
      * in order to read the serial number. Thus 80H would
@@ -164,7 +150,7 @@ int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
 
     if (!ret)
     {
-        System_printf("Unsuccessful I2C transfer\n");
+        System_printf("Unsuccessful I2C3 transfer\n");
         System_flush();
     }
 
@@ -186,11 +172,9 @@ int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
 
     if (!ret)
     {
-        System_printf("Unsuccessful I2C transfer\n");
+        System_printf("Unsuccessful I2C3 transfer\n");
         System_flush();
     }
-
-    I2C_close(handle);
 
     return ret;
 }

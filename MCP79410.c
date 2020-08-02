@@ -120,9 +120,9 @@ Void MCP79410_Params_init(MCP79410_Params *params)
 
 void MCP79410_Initialize(MCP79410_Handle handle)
 {
-    MCP79410_SetHourFormat(handle, H24);                // Set hour format to military time standard
+    MCP79410_SetHourFormat(handle, H12);                // Set hour format to military time standard
     MCP79410_EnableVbat(handle);                        // Enable battery backup
-    
+#if 0
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
 
@@ -135,8 +135,9 @@ void MCP79410_Initialize(MCP79410_Handle handle)
         tm.tm_mon+1,
         (tm.tm_year + 1900) - 2000
     };
-
     MCP79410_SetTime(handle, &curr_time);
+#endif
+
     MCP79410_EnableOscillator(handle);                  // Start clock by enabling oscillator
 }
 

@@ -12,6 +12,7 @@
 #ifndef __PMX42_H
 #define __PMX42_H
 
+#include "MCP79410.h"
 #include "AD7799.h"
 
 /* Helper Macros */
@@ -82,7 +83,10 @@ typedef struct _SYSDATA
     char            ipAddr[32];             /* IP address from DHCP       */
     /* global runtime data */
     SPI_Handle      spi12;                  /* SPI handle for slots 1 & 2 */
-    SPI_Handle      spi34;                  /* SPI handle for slots 3 & 4 */
+    SPI_Handle      spi34;
+    I2C_Handle      i2c3;
+    /* SPI handle for slots 3 & 4 */
+    MCP79410_Handle handleRTC;
     AD7799_Handle   AD7799HandleSlot1;
     AD7799_Handle   AD7799HandleSlot2;
     uint32_t        dacLevel[MAX_CHANNELS]; /* ADC DAC levels */
@@ -116,6 +120,6 @@ typedef struct CommandMessage{
 
 int main(void);
 Void CommandTaskFxn(UArg arg0, UArg arg1);
-int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]);
+int ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]);
 
 #endif /* __PMX42_H */

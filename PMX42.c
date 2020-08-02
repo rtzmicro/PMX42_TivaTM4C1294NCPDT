@@ -196,6 +196,24 @@ int main(void)
 bool Init_Peripherals(void)
 {
     SPI_Params  spiParams;
+    I2C_Params  params;
+
+    /*
+     * I2C3 shares RTC & ATMAC parts
+     */
+
+    I2C_Params_init(&params);
+
+    params.transferCallbackFxn = NULL;
+    params.transferMode = I2C_MODE_BLOCKING;
+    params.bitRate = I2C_100kHz;
+
+    if ((g_sys.i2c3 = I2C_open(PMX42_I2C3, &params)) == NULL)
+    {
+        System_printf("Error: Unable to openI2C3 port\n");
+        System_flush();
+        return false;
+    }
 
     /*
      * Slots 1 & 2 share quad-speed SPI-2 bus
@@ -255,6 +273,8 @@ bool Init_IO_Cards(void)
 #if (DIV_CLOCK_ENABLED > 0)
     EnableClockDivOutput(100);
 #endif
+
+    g_sys.handleRTC = MCP79410_create(g_sys.i2c3, NULL);
 
     /*
      * Create and initialize the AD7799 objects.
@@ -343,10 +363,16 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     CommandMessage msgCmd;
     DisplayMessage msgDisp;
 
+    /* Open the peripherals we plan to use */
+    Init_Peripherals();
+
+    /* Initialize any I/O cards in the slots */
+    Init_IO_Cards();
+
     /* STEP-1: Read the globally unique serial number from EPROM. We are also
      * reading the 6-byte MAC address from the AT24MAC serial EPROM.
      */
-    if (!ReadGUIDS(g_sys.ui8SerialNumber, g_sys.ui8MAC))
+    if (!ReadGUIDS(g_sys.i2c3, g_sys.ui8SerialNumber, g_sys.ui8MAC))
     {
         System_printf("Read Serial Number Failed!\n");
         System_flush();
@@ -357,12 +383,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     /* STEP-3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
     Semaphore_post(g_semaNDKStartup);
-
-    /* Open the peripherals we plan to use */
-    Init_Peripherals();
-
-    /* Initialize any I/O cards in the slots */
-    Init_IO_Cards();
 
     /* Initialize the USB module for device mode */
     USB_init();

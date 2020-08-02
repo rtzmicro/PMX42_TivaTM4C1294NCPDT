@@ -284,6 +284,9 @@ void DrawBarGraph(tRectangle rect, float percent)
     GrContextBackgroundSetTranslated(&g_context, 0);
     GrRectDraw(&g_context, &rect);
 
+    if (percent <= 0.0f)
+        return;
+
     rect2 = rect;
 
     rect2.i16XMin += 2;
