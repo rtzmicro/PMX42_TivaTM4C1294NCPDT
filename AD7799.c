@@ -204,13 +204,15 @@ uint32_t AD7799_GetRegisterValue(
     SPI_transfer(handle->spiHandle, &transaction);
 
     /* Wait for data ready RDY */
-    while (GPIO_read(handle->gpioRDY) == 0);
+    //while (GPIO_read(handle->gpioRDY) == 0);
+    Task_sleep(2);
 
     /*
      * Now read back any response data
      */
 
     memset(rxBuf, 0, sizeof(rxBuf));
+    //txBuf[0] = 0xFF;
 
     for (i=0; i < size; i++)
     {
@@ -222,8 +224,8 @@ uint32_t AD7799_GetRegisterValue(
         SPI_transfer(handle->spiHandle, &transaction);
 
         /* Wait for data ready RDY */
-        //while (GPIO_read(handle->gpioRDY) != 0);
-        Task_sleep(1);
+        //while (GPIO_read(handle->gpioRDY) == 0);
+        Task_sleep(2);
     }
 
     /* Release chip select to high */
@@ -287,7 +289,7 @@ void AD7799_SetRegisterValue(
     SPI_transfer(handle->spiHandle, &transaction);
 
     /* Wait for data ready RDY */
-    while (GPIO_read(handle->gpioRDY) != 0);
+    //while (GPIO_read(handle->gpioRDY) != 0);
 
     /*
      * Now write any register data
@@ -323,7 +325,8 @@ void AD7799_SetRegisterValue(
         SPI_transfer(handle->spiHandle, &transaction);
 
         /* Wait for data ready RDY */
-        while (GPIO_read(handle->gpioRDY) != 0);
+        //while (GPIO_read(handle->gpioRDY) != 0);
+        Task_sleep(2);
     }
 
     /* Release chip select to high */
@@ -615,6 +618,11 @@ uint32_t AD7799_ReadData(
 
     /* Enter the critical section */
     key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    /* Setup mode register for single conversion */
+    AD7799_SetRegisterValue(handle, AD7799_REG_MODE, AD7799_MODE_SEL(AD7799_MODE_SINGLE)|AD7799_MODE_RATE(10), 2);
+
+    Task_sleep(5);
 
     /* Read the 24-bit ADC data register */
     data = AD7799_GetRegisterValue(handle, AD7799_REG_DATA, 3);

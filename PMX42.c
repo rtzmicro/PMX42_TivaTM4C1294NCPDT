@@ -295,7 +295,7 @@ bool Init_IO_Cards(void)
     /*
      * Attempt to reset, initialize & detect presence of I/O cards
      */
-#if 0
+
     AD7799_Reset(g_sys.AD7799HandleSlot1);
 
     if (AD7799_Init(g_sys.AD7799HandleSlot1) == 0)
@@ -306,14 +306,11 @@ bool Init_IO_Cards(void)
     {
         /* Set gain to 1 */
         AD7799_SetGain(g_sys.AD7799HandleSlot1, AD7799_GAIN_1);
-        /* use AIN1(+) - AIN1(-) */
-        AD7799_SetChannel(g_sys.AD7799HandleSlot1, AD7799_CH_AIN1P_AIN1M);
-        /* use AIN2(+) - AIN2(-) */
-        AD7799_SetChannel(g_sys.AD7799HandleSlot1, AD7799_CH_AIN2P_AIN2M);
         /* Set the reference detect */
         AD7799_SetReference(g_sys.AD7799HandleSlot1, AD7799_REFDET_ENA);
+        /* Set for unipolar data reading */
+        AD7799_SetUnipolar(g_sys.AD7799HandleSlot2, 1);
     }
-#endif
 
     AD7799_Reset(g_sys.AD7799HandleSlot2);
 
@@ -418,8 +415,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
             g_sys.dacLevel[0] = AD7799_ReadData(g_sys.AD7799HandleSlot2);
 
             /* Read ADC channel 2 data */
-            //AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
-            //g_sys.dacLevel[1] = AD7799_ReadData(g_sys.AD7799HandleSlot2);
+            AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
+            g_sys.dacLevel[1] = AD7799_ReadData(g_sys.AD7799HandleSlot2);
 
             //System_printf("Stat=%1x Data=%x\n", status, g_sys.dacLevel[1]);
             //System_flush();
