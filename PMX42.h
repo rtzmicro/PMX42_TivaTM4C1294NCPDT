@@ -53,8 +53,10 @@
 
 
 #define ADC_FULLSCALE       0xFFFFFF
-#define ADC_VREF            4.096f
+#define ADC_VREF            5.0f
 #define ADC_VSTEP           (ADC_VREF / (float)ADC_FULLSCALE)
+
+#define ADC_ERROR           0xFFFFFFFF
 
 //*****************************************************************************
 // 128-BIT GUID Structure

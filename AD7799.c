@@ -81,8 +81,6 @@ const AD7799_Params AD7799_defaultParams = {
 /*** Static Function Prototypes ***/
 
 static Void AD7799_destruct(AD7799_Handle handle);
-static void AD7799_SetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint32_t regValue, uint8_t size);
-static uint32_t AD7799_GetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint8_t size);
 
 /******************************************************************************
  * AD7799_construct
@@ -99,8 +97,6 @@ AD7799_Handle AD7799_construct(
     obj->spiHandle = spiHandle;
     obj->gpioCS    = gpioCSIndex;
     obj->gpioRDY   = gpioRDYIndex;
-
-    GateMutex_construct(&(obj->gate), NULL);
 
     return (AD7799_Handle)obj;
 }
@@ -149,8 +145,6 @@ Void AD7799_delete(AD7799_Handle handle)
 Void AD7799_destruct(AD7799_Handle handle)
 {
     Assert_isTrue((handle != NULL), NULL);
-
-    GateMutex_destruct(&(handle->gate));
 }
 
 /******************************************************************************
@@ -162,6 +156,38 @@ Void AD7799_Params_init(AD7799_Params *params)
     Assert_isTrue(params != NULL, NULL);
 
     *params = AD7799_defaultParams;
+}
+
+/******************************************************************************
+ * @brief Sends 32 consecutive 1's on SPI in order to reset the part.
+ *
+ * @param None.
+ *
+ * @return  None.
+ ******************************************************************************/
+
+void AD7799_Reset(AD7799_Handle handle)
+{
+    SPI_Transaction transaction;
+    uint32_t txBuf = 0xFFFFFFFF;
+    uint32_t rxBuf;
+
+    /* Initialize opcode transaction structure */
+    transaction.count = 4;
+    transaction.txBuf = (Ptr)&txBuf;
+    transaction.rxBuf = (Ptr)&rxBuf;
+
+    /* Assert the chip select low */
+    GPIO_write(handle->gpioCS, PIN_LOW);
+
+    /* Initiate SPI transfer */
+    SPI_transfer(handle->spiHandle, &transaction);
+
+    /* Release chip select to high */
+    GPIO_write(handle->gpioCS, PIN_HIGH);
+
+    /* Settling time after chip reset */
+    Task_sleep(100);
 }
 
 /******************************************************************************
@@ -179,13 +205,13 @@ uint32_t AD7799_GetRegisterValue(
         uint8_t size
         )
 {
-    uint8_t txBuf[4];
-    uint8_t rxBuf[4];
-    uint32_t i;
-    uint32_t regval = 0;
+    uint8_t txBuf[5];
+    uint8_t rxBuf[5];
+    uint32_t regval;
     SPI_Transaction transaction;
 
     memset(txBuf, 0, sizeof(txBuf));
+    memset(rxBuf, 0, sizeof(rxBuf));
 
     /* Assert the chip select low */
     GPIO_write(handle->gpioCS, PIN_LOW);
@@ -203,50 +229,57 @@ uint32_t AD7799_GetRegisterValue(
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
 
-    /* Wait for data ready RDY */
-    //while (GPIO_read(handle->gpioRDY) == 0);
-    Task_sleep(2);
-
     /*
      * Now read back any response data
      */
 
     memset(rxBuf, 0, sizeof(rxBuf));
-    //txBuf[0] = 0xFF;
 
-    for (i=0; i < size; i++)
-    {
-        transaction.count = 1;
-        transaction.txBuf = (Ptr)&txBuf[i];
-        transaction.rxBuf = (Ptr)&rxBuf[i];
+    /* dummy byte for read */
+    txBuf[0] = 0xFF;
 
-        /* Initiate SPI transfer */
-        SPI_transfer(handle->spiHandle, &transaction);
+    transaction.count = size;
+    transaction.txBuf = (Ptr)&txBuf[0];
+    transaction.rxBuf = (Ptr)&rxBuf[0];
 
-        /* Wait for data ready RDY */
-        //while (GPIO_read(handle->gpioRDY) == 0);
-        Task_sleep(2);
-    }
+    /* Initiate SPI transfer */
+    SPI_transfer(handle->spiHandle, &transaction);
 
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);
 
     /* Extract the data value returned */
 
-    if (size == 1)
+    switch (size)
     {
-        regval += (rxBuf[0] << 0);
-    }
-    else if(size == 2)
-    {
-        regval += (rxBuf[0] << 8);
-        regval += (rxBuf[1] << 0);
-    }
-    else if(size == 3)
-    {
-        regval += ((unsigned long)rxBuf[0] << 16);
-        regval += (rxBuf[1] << 8);
-        regval += (rxBuf[2] << 0);
+    case 1:
+        regval = (uint32_t)(rxBuf[0]);
+        break;
+
+    case 2:
+        regval = (uint32_t)((rxBuf[0] << 8) | rxBuf[1]);
+        break;
+
+    case 3:
+        // In most cases, the ADC code is read by a microcontroller in 8-bit
+        // segments and concatenated into a 32-bit data type. If the ADC’s
+        // resolution is less than 32 bits and the output code is signed, the
+        // data will need to be sign-extended into the 32-bit integer data
+        // type to preserve the sign.
+
+#ifdef BIPOLAR_24BIT
+        regval = (uint32_t)(((((rxBuf[0] & 0x80) ? 0xFF : 0x00)) << 24) |
+                                              ((rxBuf[0] & 0xFF) << 16) |
+                                              ((rxBuf[1] & 0xFF) << 8 ) |
+                                              ((rxBuf[2] & 0xFF) << 0 ));
+#else
+        regval = (uint32_t)((rxBuf[0] << 16) | (rxBuf[1] << 8) | rxBuf[2]);
+#endif
+        break;
+
+    default:
+        regval  = 0;
+        break;
     }
 
     return regval;
@@ -271,10 +304,10 @@ void AD7799_SetRegisterValue(
 {
     uint8_t txBuf[5];
     uint8_t rxBuf[5];
-    uint32_t i;
     SPI_Transaction transaction;
 
     memset(txBuf, 0, sizeof(txBuf));
+    memset(rxBuf, 0, sizeof(rxBuf));
 
     /* Assert the chip select low */
     GPIO_write(handle->gpioCS, PIN_LOW);
@@ -288,113 +321,45 @@ void AD7799_SetRegisterValue(
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
 
-    /* Wait for data ready RDY */
-    //while (GPIO_read(handle->gpioRDY) != 0);
-
     /*
      * Now write any register data
      */
 
+    memset(txBuf, 0, sizeof(rxBuf));
     memset(rxBuf, 0, sizeof(rxBuf));
 
     /* Format the register data value to write */
 
-    if (size == 1)
+    switch (size)
     {
+    case 1:
         txBuf[0] = (uint8_t)regValue;
-    }
-    else if (size == 2)
-    {
+        break;
+
+    case 2:
         txBuf[0] = (uint8_t)(regValue >> 8);
         txBuf[1] = (uint8_t)regValue;
-    }
-    else if (size == 3)
-    {
+        break;
+
+    case 3:
         txBuf[0] = (uint8_t)(regValue >> 16);
         txBuf[1] = (uint8_t)(regValue >> 8);
         txBuf[2] = (uint8_t)regValue;
+        break;
+
+    default:
+        break;
     }
 
-    for(i=0; i < size; i++)
-    {
-        transaction.count = 1;
-        transaction.txBuf = (Ptr)&txBuf[i];
-        transaction.rxBuf = (Ptr)&rxBuf[i];
-
-        /* Initiate SPI transfer */
-        SPI_transfer(handle->spiHandle, &transaction);
-
-        /* Wait for data ready RDY */
-        //while (GPIO_read(handle->gpioRDY) != 0);
-        Task_sleep(2);
-    }
-
-    /* Release chip select to high */
-    GPIO_write(handle->gpioCS, PIN_HIGH);
-}
-
-/******************************************************************************
- * @brief Reads /RDY bit of status reg.
- *
- * @param None.
- *
- * @return rdy  - 0 if RDY is 1.
- *              - 1 if RDY is 0.
- ******************************************************************************/
-
-uint8_t AD7799_IsReady(AD7799_Handle handle)
-{
-    uint8_t rdy = 0;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
-
-    rdy = AD7799_GetRegisterValue(handle, AD7799_REG_STAT, 1) & AD7799_STAT_RDY;
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
-
-    return(!rdy);
-}
-
-/******************************************************************************
- * @brief Sends 32 consecutive 1's on SPI in order to reset the part.
- *
- * @param None.
- *
- * @return  None.
- ******************************************************************************/
-
-void AD7799_Reset(AD7799_Handle handle)
-{
-    IArg key;
-    SPI_Transaction transaction;
-    uint32_t txBuf = 0xFFFFFFFF;
-    uint32_t rxBuf;
-
-    /* Initialize opcode transaction structure */
-    transaction.count = 4;
-    transaction.txBuf = (Ptr)&txBuf;
-    transaction.rxBuf = (Ptr)&rxBuf;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
-
-    /* Assert the chip select low */
-    GPIO_write(handle->gpioCS, PIN_LOW);
+    transaction.count = size;
+    transaction.txBuf = (Ptr)&txBuf[0];
+    transaction.rxBuf = (Ptr)&rxBuf[0];
 
     /* Initiate SPI transfer */
     SPI_transfer(handle->spiHandle, &transaction);
 
     /* Release chip select to high */
     GPIO_write(handle->gpioCS, PIN_HIGH);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
-
-    /* Settling time after chip reset */
-    Task_sleep(100);
 }
 
 /******************************************************************************
@@ -411,10 +376,6 @@ uint8_t AD7799_Init(AD7799_Handle handle)
 {
     uint32_t reg;
     uint8_t status = 0x1;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
     reg = AD7799_GetRegisterValue(handle, AD7799_REG_ID, 1);
 
@@ -423,10 +384,25 @@ uint8_t AD7799_Init(AD7799_Handle handle)
         status = 0x0;
     }
 
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
-
     return status;
+}
+
+/******************************************************************************
+ * @brief Reads /RDY bit of status reg.
+ *
+ * @param None.
+ *
+ * @return rdy  - 0 if RDY is 1.
+ *              - 1 if RDY is 0.
+ ******************************************************************************/
+
+uint8_t AD7799_IsReady(AD7799_Handle handle)
+{
+    uint8_t rdy = 0;
+
+    rdy = AD7799_GetRegisterValue(handle, AD7799_REG_STAT, 1) & AD7799_STAT_RDY;
+
+    return(!rdy);
 }
 
 /******************************************************************************
@@ -439,21 +415,14 @@ uint8_t AD7799_Init(AD7799_Handle handle)
 
 void AD7799_SetMode(AD7799_Handle handle, uint32_t mode)
 {
-    uint32_t command;
-    IArg key;
+    //uint32_t command;
 
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+    //command = AD7799_GetRegisterValue(handle, AD7799_REG_MODE, 2);
 
-    command = AD7799_GetRegisterValue(handle, AD7799_REG_MODE, 2);
+    //command &= ~AD7799_MODE_SEL(0xFF);
+    //command |= AD7799_MODE_SEL(mode);
 
-    command &= ~AD7799_MODE_SEL(0xFF);
-    command |= AD7799_MODE_SEL(mode);
-
-    AD7799_SetRegisterValue(handle, AD7799_REG_MODE, command, 2);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+    AD7799_SetRegisterValue(handle, AD7799_REG_MODE, mode, 2);
 }
 
 /******************************************************************************
@@ -467,10 +436,6 @@ void AD7799_SetMode(AD7799_Handle handle, uint32_t mode)
 void AD7799_SetChannel(AD7799_Handle handle, uint32_t channel)
 {
     uint32_t command;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
     command = AD7799_GetRegisterValue(handle, AD7799_REG_CONF, 2);
 
@@ -478,9 +443,6 @@ void AD7799_SetChannel(AD7799_Handle handle, uint32_t channel)
     command |= AD7799_CONF_CHAN(channel);
 
     AD7799_SetRegisterValue(handle, AD7799_REG_CONF, command, 2);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 }
 
 /******************************************************************************
@@ -494,10 +456,6 @@ void AD7799_SetChannel(AD7799_Handle handle, uint32_t channel)
 void AD7799_SetGain(AD7799_Handle handle, uint32_t gain)
 {
     uint32_t command;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
     command = AD7799_GetRegisterValue(handle, AD7799_REG_CONF, 2);
 
@@ -505,9 +463,6 @@ void AD7799_SetGain(AD7799_Handle handle, uint32_t gain)
     command |= AD7799_CONF_GAIN(gain);
 
     AD7799_SetRegisterValue(handle, AD7799_REG_CONF, command, 2);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 }
 
 /******************************************************************************
@@ -520,13 +475,9 @@ void AD7799_SetGain(AD7799_Handle handle, uint32_t gain)
  * @return None.    
  ******************************************************************************/
 
-void AD7799_SetReference(AD7799_Handle handle, uint8_t state)
+void AD7799_SetRefDetect(AD7799_Handle handle, uint8_t state)
 {
     uint32_t command = 0;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
     command = AD7799_GetRegisterValue(handle, AD7799_REG_CONF, 2);
 
@@ -534,9 +485,6 @@ void AD7799_SetReference(AD7799_Handle handle, uint8_t state)
     command |= AD7799_CONF_REFDET(state);
 
     AD7799_SetRegisterValue(handle, AD7799_REG_CONF, command, 2);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 }
 
 /******************************************************************************
@@ -546,10 +494,6 @@ void AD7799_SetReference(AD7799_Handle handle, uint8_t state)
 void AD7799_SetUnipolar(AD7799_Handle handle, uint8_t state)
 {
     uint32_t command = 0;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
     command = AD7799_GetRegisterValue(handle, AD7799_REG_CONF, 2);
 
@@ -557,9 +501,6 @@ void AD7799_SetUnipolar(AD7799_Handle handle, uint8_t state)
     command |= AD7799_CONF_UNIPOLAR(state);
     
     AD7799_SetRegisterValue(handle, AD7799_REG_CONF, command, 2);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 }
 
 /******************************************************************************
@@ -569,10 +510,6 @@ void AD7799_SetUnipolar(AD7799_Handle handle, uint8_t state)
 void AD7799_SetBuffer(AD7799_Handle handle, uint8_t state)
 {
     uint32_t command = 0;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
     command = AD7799_GetRegisterValue(handle, AD7799_REG_CONF, 2);
 
@@ -580,9 +517,6 @@ void AD7799_SetBuffer(AD7799_Handle handle, uint8_t state)
     command |= AD7799_CONF_BUF(state);
 
     AD7799_SetRegisterValue(handle, AD7799_REG_CONF, command, 2);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 }
 
 /******************************************************************************
@@ -592,43 +526,24 @@ void AD7799_SetBuffer(AD7799_Handle handle, uint8_t state)
 uint8_t AD7799_ReadStatus(AD7799_Handle handle)
 {
     uint8_t status;
-    IArg key;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
     status = AD7799_GetRegisterValue(handle, AD7799_REG_STAT, 1);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 
     return status;
 }
 
 /******************************************************************************
- * Read the 24-bit data word register
+ * Read the ADC 24-bit data word register
  ******************************************************************************/
 
 uint32_t AD7799_ReadData(
         AD7799_Handle handle
         )
 {
-    IArg key;
     uint32_t data;
-
-    /* Enter the critical section */
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
-
-    /* Setup mode register for single conversion */
-    AD7799_SetRegisterValue(handle, AD7799_REG_MODE, AD7799_MODE_SEL(AD7799_MODE_SINGLE)|AD7799_MODE_RATE(10), 2);
-
-    Task_sleep(5);
 
     /* Read the 24-bit ADC data register */
     data = AD7799_GetRegisterValue(handle, AD7799_REG_DATA, 3);
-
-    /* Exit the critical section */
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 
     return data;
 }

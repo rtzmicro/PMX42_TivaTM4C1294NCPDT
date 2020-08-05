@@ -115,6 +115,9 @@
 #define AD7799_REFDET_ENA   1	
 #define AD7799_REFDET_DIS   0
 
+#define AD7799_UNIPOLAR_ENA 1
+#define AD7799_UNIPOLAR_DIS 0
+
 /* AD7799_CONF_CHAN(x) options */
 #define AD7799_CH_AIN1P_AIN1M	0   /* AIN1(+) - AIN1(-) */
 #define AD7799_CH_AIN2P_AIN2M	1   /* AIN2(+) - AIN2(-) */
@@ -187,10 +190,9 @@ typedef struct AD7799_Params {
  *  The application should never directly access the fields in the structure.
  */
 typedef struct AD7799_Object {
-    SPI_Handle          spiHandle;      /* SPI handle   */
-    uint32_t            gpioCS;         /* chip select  */
-    uint32_t            gpioRDY;        /* RDY gpio pin */
-    GateMutex_Struct    gate;           /* gate mutex   */
+    SPI_Handle  spiHandle;      /* SPI handle   */
+    uint32_t    gpioCS;         /* chip select  */
+    uint32_t    gpioRDY;        /* RDY gpio pin */
 } AD7799_Object;
 
 /*!
@@ -260,27 +262,33 @@ Void AD7799_Params_init(AD7799_Params *params);
 /* Initialize AD7799 and check if the device is present*/
 uint8_t AD7799_Init(AD7799_Handle handle);
 
-/* Sends 32 consecutive 1's on SPI in order to reset the part. */
-void AD7799_Reset(AD7799_Handle handle);
+/* Low level register read */
+uint32_t AD7799_GetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint8_t size);
 
-/* Sets the operating mode of AD7799. */
-void AD7799_SetMode(AD7799_Handle handle, uint32_t mode);
+/* Low level register write */
+void AD7799_SetRegisterValue(AD7799_Handle handle, uint8_t regAddress, uint32_t regValue, uint8_t size);
 
 /* Reads /RDY bit of Status register. */
 uint8_t AD7799_IsReady(AD7799_Handle handle);
 
-/* Selects the channel of AD7799. */
-void AD7799_SetChannel(AD7799_Handle handle, uint32_t channel);
+/* Sends 32 consecutive 1's on SPI in order to reset the part. */
+void AD7799_Reset(AD7799_Handle handle);
 
 /* Sets the gain of the In-Amp. */
 void AD7799_SetGain(AD7799_Handle handle, uint32_t gain);
 
 /* Enables or disables the reference detect function. */
-void AD7799_SetReference(AD7799_Handle handle, uint8_t state);
+void AD7799_SetRefDetect(AD7799_Handle handle, uint8_t state);
 
 void AD7799_SetUnipolar(AD7799_Handle handle, uint8_t state);
 
 void AD7799_SetBuffer(AD7799_Handle handle, uint8_t state);
+
+/* Selects the channel of AD7799. */
+void AD7799_SetChannel(AD7799_Handle handle, uint32_t channel);
+
+/* Sets the operating mode of AD7799. */
+void AD7799_SetMode(AD7799_Handle handle, uint32_t mode);
 
 /* Read the 24-bit data register */
 uint32_t AD7799_ReadData(AD7799_Handle handle);

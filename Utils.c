@@ -125,7 +125,6 @@ int ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
 {
     bool            ret;
     uint8_t         txByte;
-    I2C_Params      params;
     I2C_Transaction i2cTransaction;
 
     /* default is all FF's  in case read fails*/

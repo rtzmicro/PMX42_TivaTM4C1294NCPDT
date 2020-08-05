@@ -106,6 +106,9 @@ SYSCONFIG   g_cfg;
 
 void gpioButtonHwi(unsigned int index);
 
+static bool Init_Peripherals(void);
+static bool Init_Devices(void);
+
 //*****************************************************************************
 // Main Entry Point
 //*****************************************************************************
@@ -199,7 +202,7 @@ bool Init_Peripherals(void)
     I2C_Params  params;
 
     /*
-     * I2C3 shares RTC & ATMAC parts
+     * I2C3 shares MCP79410 RTC & AT24MAC serial/MAC parts
      */
 
     I2C_Params_init(&params);
@@ -263,7 +266,7 @@ bool Init_Peripherals(void)
 //
 //*****************************************************************************
 
-bool Init_IO_Cards(void)
+bool Init_Devices(void)
 {
     /* This enables the DIVSCLK output pin on PQ4
      * and generates a 1.2 Mhz clock signal on the.
@@ -274,7 +277,10 @@ bool Init_IO_Cards(void)
     EnableClockDivOutput(100);
 #endif
 
-    g_sys.handleRTC = MCP79410_create(g_sys.i2c3, NULL);
+    if ((g_sys.handleRTC = MCP79410_create(g_sys.i2c3, NULL)) == NULL)
+    {
+        System_abort("MCP79410_create failed\n");
+    }
 
     /*
      * Create and initialize the AD7799 objects.
@@ -282,50 +288,52 @@ bool Init_IO_Cards(void)
 
     if ((g_sys.AD7799HandleSlot1 = AD7799_create(g_sys.spi12, Board_SLOT1_SS, Board_SLOT1_RDY, NULL)) == NULL)
     {
-        System_printf("AD7799_create failed\n");
-        return false;
+        System_abort("AD7799_create failed\n");
     }
 
     if ((g_sys.AD7799HandleSlot2 = AD7799_create(g_sys.spi12, Board_SLOT2_SS, Board_SLOT2_RDY, NULL)) == NULL)
     {
-        System_printf("AD7799_create failed\n");
-        return false;
+        System_abort("AD7799_create failed\n");
     }
 
     /*
      * Attempt to reset, initialize & detect presence of I/O cards
      */
 
+    /* Initialize ADC Channels in slot 1 */
+
     AD7799_Reset(g_sys.AD7799HandleSlot1);
 
     if (AD7799_Init(g_sys.AD7799HandleSlot1) == 0)
     {
-       System_printf("AD7799_Init() failed\n");
+       System_printf("AD7799_Init() slot-1 failed\n");
     }
     else
     {
         /* Set gain to 1 */
         AD7799_SetGain(g_sys.AD7799HandleSlot1, AD7799_GAIN_1);
         /* Set the reference detect */
-        AD7799_SetReference(g_sys.AD7799HandleSlot1, AD7799_REFDET_ENA);
+        AD7799_SetRefDetect(g_sys.AD7799HandleSlot1, AD7799_REFDET_ENA);
         /* Set for unipolar data reading */
         AD7799_SetUnipolar(g_sys.AD7799HandleSlot2, 1);
     }
+
+    /* Initialize ADC Channels in slot 2 */
 
     AD7799_Reset(g_sys.AD7799HandleSlot2);
 
     if (AD7799_Init(g_sys.AD7799HandleSlot2) == 0)
     {
-        System_printf("AD7799_Init() failed\n");
+        System_printf("AD7799_Init() slot-2 failed\n");
     }
     else
     {
         /* Set gain to 1 */
         AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
         /* Set the reference detect */
-        AD7799_SetReference(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
+        AD7799_SetRefDetect(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
         /* Set for unipolar data reading */
-        AD7799_SetUnipolar(g_sys.AD7799HandleSlot2, 1);
+        AD7799_SetUnipolar(g_sys.AD7799HandleSlot2, AD7799_UNIPOLAR_ENA);
     }
 
     System_flush();
@@ -334,16 +342,43 @@ bool Init_IO_Cards(void)
 }
 
 //*****************************************************************************
-// This is a hook into the NDK stack to allow delaying execution of the NDK
-// stack task until after we load the MAC address from the AT24MAC serial
-// EPROM part. This hook blocks on a semaphore until after we're able to call
-// Board_initEMAC() in the CommandTaskFxn() below. This mechanism allows us
-// to delay execution until we load the MAC from EPROM.
+//
+//
 //*****************************************************************************
 
-void NDKStackBeginHook(void)
+uint32_t ADC_Read_Channel(AD7799_Handle handle, uint32_t channel)
 {
-    Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
+    uint32_t i;
+    uint32_t data = ADC_ERROR;
+    uint8_t status = 0;
+
+    /* Select ADC Channel-1 */
+    AD7799_SetChannel(handle, channel);
+
+    /* Set the channel mode to start the single conversion */
+    AD7799_SetMode(handle, AD7799_MODE_SEL(AD7799_MODE_SINGLE) | AD7799_MODE_RATE(10));
+
+    for (i=0; i < 20; i++)
+    {
+        /* Check for ADC conversion complete */
+        if (AD7799_IsReady(handle))
+        {
+            /* Read ADC channel */
+            data = AD7799_ReadData(handle);
+
+            /* Read the current ADC status and check for error */
+            status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
+
+            //if (status & AD7799_STAT_ERR)
+            //    data = ADC_ERROR;
+
+            break;
+        }
+
+        Task_sleep(10);
+    }
+
+    return data;
 }
 
 //*****************************************************************************
@@ -364,7 +399,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     Init_Peripherals();
 
     /* Initialize any I/O cards in the slots */
-    Init_IO_Cards();
+    Init_Devices();
 
     /* STEP-1: Read the globally unique serial number from EPROM. We are also
      * reading the 6-byte MAC address from the AT24MAC serial EPROM.
@@ -408,17 +443,15 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED1);
 
-            //status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
+    		g_sys.dacLevel[0] = ADC_Read_Channel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
 
-            /* Read ADC channel 1 data */
-            AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
-            g_sys.dacLevel[0] = AD7799_ReadData(g_sys.AD7799HandleSlot2);
-
-            /* Read ADC channel 2 data */
+#if 0
+            /* Select ADC Channel-2 */
             AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
+            /* Read ADC channel 2 */
             g_sys.dacLevel[1] = AD7799_ReadData(g_sys.AD7799HandleSlot2);
-
-            //System_printf("Stat=%1x Data=%x\n", status, g_sys.dacLevel[1]);
+#endif
+            //System_printf("chan1=%x chan2=%x\n", g_sys.dacLevel[0], g_sys.dacLevel[1]);
             //System_flush();
             continue;
         }
@@ -486,6 +519,19 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
             }
         }
     }
+}
+
+//*****************************************************************************
+// This is a hook into the NDK stack to allow delaying execution of the NDK
+// stack task until after we load the MAC address from the AT24MAC serial
+// EPROM part. This hook blocks on a semaphore until after we're able to call
+// Board_initEMAC() in the CommandTaskFxn() below. This mechanism allows us
+// to delay execution until we load the MAC from EPROM.
+//*****************************************************************************
+
+void NDKStackBeginHook(void)
+{
+    Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
 }
 
 //*****************************************************************************

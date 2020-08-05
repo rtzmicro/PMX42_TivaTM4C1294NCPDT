@@ -201,6 +201,7 @@ void DrawUV(void)
     static char buf[128];
     float level;
     float power;
+    float percentage;
     float v;
 
     x = 0;
@@ -245,29 +246,38 @@ void DrawUV(void)
     GrContextFontSet(&g_context,  g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
-
-
     for (i=0; i < UV_CHANNELS; i++)
     {
-        level = (float)g_sys.dacLevel[i];
+        if (g_sys.dacLevel[i] == ADC_ERROR)
+        {
+            percentage = 0.0f;
 
-        /* The ADC vref is 4.096V */
-        v = ADC_VSTEP * level;
+            /* display error msg */
+            sprintf(buf, "%d: ERR", i+1);
+        }
+        else
+        {
+            level = (float)g_sys.dacLevel[i];
 
-        /* GUVC-T21GH sensor Vout = 0.71 x UV-C power in mW/cm2 */
-        power = v / 0.71f;
+            /* The ADC vref is 5.0V */
+            v = ADC_VSTEP * level;
 
-        //sprintf(buf, "%d: %.2f", i, power);
-        sprintf(buf, "%d: %6x", i, g_sys.dacLevel[i]);
+            /* GUVC-T21GH sensor Vout = 0.71 x UV-C power in mW/cm2 */
+            power = v / 0.71f;
+
+            sprintf(buf, "%d: %.2f", i+1, power);
+            //sprintf(buf, "%d: %6x", i, g_sys.dacLevel[i]);
+
+            //float percentage = (power / 7.0f) * 100.0f;
+            percentage = (level / (float)ADC_FULLSCALE) * 100.0f;
+        }
+
         GrStringDraw(&g_context, buf, -1, x, y, 0);
 
-        rect.i16XMin = x + 75;
+        rect.i16XMin = x + 50;
         rect.i16YMin = y;
         rect.i16XMax = SCREEN_WIDTH - 1;
         rect.i16YMax = (height - 2) + rect.i16YMin;
-
-        //float percentage = (power / 7.0f) * 100.0f;
-        float percentage = (level / (float)ADC_FULLSCALE) * 100.0f;
 
         DrawBarGraph(rect, percentage);
 
