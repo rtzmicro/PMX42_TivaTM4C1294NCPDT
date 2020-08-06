@@ -369,8 +369,8 @@ uint32_t ADC_Read_Channel(AD7799_Handle handle, uint32_t channel)
             /* Read the current ADC status and check for error */
             status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
 
-            //if (status & AD7799_STAT_ERR)
-            //    data = ADC_ERROR;
+            if (status & AD7799_STAT_ERR)
+                data = ADC_ERROR;
 
             break;
         }
@@ -389,7 +389,6 @@ uint32_t ADC_Read_Channel(AD7799_Handle handle, uint32_t channel)
 Void CommandTaskFxn(UArg arg0, UArg arg1)
 {
     uint32_t i;
-    uint8_t status = 0;
     Error_Block eb;
 	Task_Params taskParams;
     CommandMessage msgCmd;
@@ -443,14 +442,12 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED1);
 
+    		/* Read ADC level for channel-1 in slot 2 */
     		g_sys.dacLevel[0] = ADC_Read_Channel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
 
-#if 0
-            /* Select ADC Channel-2 */
-            AD7799_SetChannel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
-            /* Read ADC channel 2 */
-            g_sys.dacLevel[1] = AD7799_ReadData(g_sys.AD7799HandleSlot2);
-#endif
+    		/* Read ADC level for channel-2 in slot 2 */
+            g_sys.dacLevel[1] = ADC_Read_Channel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
+
             //System_printf("chan1=%x chan2=%x\n", g_sys.dacLevel[0], g_sys.dacLevel[1]);
             //System_flush();
             continue;
