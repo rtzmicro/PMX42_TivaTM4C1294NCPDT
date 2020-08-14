@@ -265,8 +265,8 @@ void DrawUV(void)
             /* GUVC-T21GH sensor Vout = 0.71 x UV-C power in mW/cm2 */
             power = v / 0.71f;
 
-            sprintf(buf, "%d: %.2f", i+1, power);
-            //sprintf(buf, "%d: %6x", i, g_sys.dacLevel[i]);
+            //sprintf(buf, "%d: %.3f", i+1, power);
+            sprintf(buf, "%d: %6x", i, g_sys.dacLevel[i]);
 
             //float percentage = (power / 7.0f) * 100.0f;
             percentage = (level / (float)ADC_FULLSCALE) * 100.0f;
@@ -274,7 +274,7 @@ void DrawUV(void)
 
         GrStringDraw(&g_context, buf, -1, x, y, 0);
 
-        rect.i16XMin = x + 50;
+        rect.i16XMin = x + 60;
         rect.i16YMin = y;
         rect.i16XMax = SCREEN_WIDTH - 1;
         rect.i16YMax = (height - 2) + rect.i16YMin;

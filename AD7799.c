@@ -536,9 +536,7 @@ uint8_t AD7799_ReadStatus(AD7799_Handle handle)
  * Read the ADC 24-bit data word register
  ******************************************************************************/
 
-uint32_t AD7799_ReadData(
-        AD7799_Handle handle
-        )
+uint32_t AD7799_ReadData(AD7799_Handle handle)
 {
     uint32_t data;
 

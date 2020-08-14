@@ -369,8 +369,8 @@ uint32_t ADC_Read_Channel(AD7799_Handle handle, uint32_t channel)
             /* Read the current ADC status and check for error */
             status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
 
-            if (status & AD7799_STAT_ERR)
-                data = ADC_ERROR;
+            //if (status & AD7799_STAT_ERR)
+            //    data = ADC_ERROR;
 
             break;
         }
