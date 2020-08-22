@@ -199,10 +199,12 @@ void DrawUV(void)
     uint32_t spacing;
     tRectangle rect;
     static char buf[128];
+    float v;
     float level;
     float power;
+    float step;
+    float fullscale;
     float percentage;
-    float v;
 
     x = 0;
     y = 0;
@@ -248,7 +250,7 @@ void DrawUV(void)
 
     for (i=0; i < UV_CHANNELS; i++)
     {
-        if (g_sys.dacLevel[i] == ADC_ERROR)
+        if (g_sys.adcLevel[i] == ADC_ERROR)
         {
             percentage = 0.0f;
 
@@ -257,19 +259,26 @@ void DrawUV(void)
         }
         else
         {
-            level = (float)g_sys.dacLevel[i];
+            /* get the ADC sensor level */
+            level = (float)g_sys.adcLevel[i];
 
-            /* The ADC vref is 5.0V */
-            v = ADC_VSTEP * level;
+            /* The ADC vref is 4.096V */
+            fullscale = (g_sys.adcID == AD7798_ID) ?  (float)AD7798_FULLSCALE : (float)AD7799_FULLSCALE;
 
-            /* GUVC-T21GH sensor Vout = 0.71 x UV-C power in mW/cm2 */
+            /* Calculate the voltage per ADC step */
+            step = ADC_VREF / fullscale;
+
+            /* Calculate the actual voltage based on the ADC step value */
+            v = step * level;
+
+            /* sensor Vout = 0.71 x UV-C power in mW/cm2 */
             power = v / 0.71f;
 
             //sprintf(buf, "%d: %.3f", i+1, power);
-            sprintf(buf, "%d: %6x", i, g_sys.dacLevel[i]);
+            sprintf(buf, "%d: %6x", i, g_sys.adcLevel[i]);
 
             //float percentage = (power / 7.0f) * 100.0f;
-            percentage = (level / (float)ADC_FULLSCALE) * 100.0f;
+            percentage = (level / fullscale) * 100.0f;
         }
 
         GrStringDraw(&g_context, buf, -1, x, y, 0);

@@ -127,7 +127,14 @@
 
 /* ID Register Bit Designations (AD7799_REG_ID) */
 #define AD7799_ID			0x9
+#define AD7798_ID           0x8
 #define AD7799_ID_MASK		0xF
+
+#define AD7798_WORDSIZE     2       /* 2-bytes for 16-bit */
+#define AD7799_WORDSIZE     3       /* 3-bytes for 24-bit */
+
+#define AD7798_FULLSCALE    0xFFFF
+#define AD7799_FULLSCALE    0xFFFFFF
 
 /* IO (Excitation Current Sources) Register Bit Designations (AD7799_REG_IO) */
 #define AD7799_IOEN			(1 << 6)
@@ -193,6 +200,8 @@ typedef struct AD7799_Object {
     SPI_Handle  spiHandle;      /* SPI handle   */
     uint32_t    gpioCS;         /* chip select  */
     uint32_t    gpioRDY;        /* RDY gpio pin */
+    uint8_t     adcWordSize;    /* 16 or 24 bit */
+    uint8_t     adcID;          /* 8 or 9 */
 } AD7799_Object;
 
 /*!

@@ -97,6 +97,7 @@ AD7799_Handle AD7799_construct(
     obj->spiHandle = spiHandle;
     obj->gpioCS    = gpioCSIndex;
     obj->gpioRDY   = gpioRDYIndex;
+    obj->adcWordSize = 0;
 
     return (AD7799_Handle)obj;
 }
@@ -375,13 +376,26 @@ void AD7799_SetRegisterValue(
 uint8_t AD7799_Init(AD7799_Handle handle)
 {
     uint32_t reg;
-    uint8_t status = 0x1;
+    uint8_t status = 0;
 
     reg = AD7799_GetRegisterValue(handle, AD7799_REG_ID, 1);
 
-    if ((reg & 0x0F) != AD7799_ID)
+    /* Save the device ID, 8 = ADC7798 or 9 = ADC7799 */
+    handle->adcID = (reg & 0x0F);
+
+    if (handle->adcID == AD7798_ID)
     {
-        status = 0x0;
+        /* data word size is 2 bytes (16-bit) */
+        handle->adcWordSize = AD7798_WORDSIZE;
+
+        status = AD7798_ID;
+    }
+    else if (handle->adcID == AD7799_ID)
+    {
+        /* data word size if 3 bytes (24-bit) */
+        handle->adcWordSize = AD7799_WORDSIZE;
+
+        status = AD7799_ID;
     }
 
     return status;
@@ -540,8 +554,10 @@ uint32_t AD7799_ReadData(AD7799_Handle handle)
 {
     uint32_t data;
 
-    /* Read the 24-bit ADC data register */
-    data = AD7799_GetRegisterValue(handle, AD7799_REG_DATA, 3);
+    /* If part is a ADC7798, read 2 bytes of 16-bit data.
+     * Otherwise, if part is a ADC7799, read 3 bytes of 24-bit data
+     */
+    data = AD7799_GetRegisterValue(handle, AD7799_REG_DATA, handle->adcWordSize);
 
     return data;
 }

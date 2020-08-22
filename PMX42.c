@@ -277,6 +277,10 @@ bool Init_Devices(void)
     EnableClockDivOutput(100);
 #endif
 
+    /*
+     * Create and initialize the MCP79410 RTC object.
+     */
+
     if ((g_sys.handleRTC = MCP79410_create(g_sys.i2c3, NULL)) == NULL)
     {
         System_abort("MCP79410_create failed\n");
@@ -304,7 +308,7 @@ bool Init_Devices(void)
 
     AD7799_Reset(g_sys.AD7799HandleSlot1);
 
-    if (AD7799_Init(g_sys.AD7799HandleSlot1) == 0)
+    if ((g_sys.adcID = AD7799_Init(g_sys.AD7799HandleSlot1)) == 0)
     {
        System_printf("AD7799_Init() slot-1 failed\n");
     }
@@ -322,7 +326,7 @@ bool Init_Devices(void)
 
     AD7799_Reset(g_sys.AD7799HandleSlot2);
 
-    if (AD7799_Init(g_sys.AD7799HandleSlot2) == 0)
+    if ((g_sys.adcID = AD7799_Init(g_sys.AD7799HandleSlot2)) == 0)
     {
         System_printf("AD7799_Init() slot-2 failed\n");
     }
@@ -420,7 +424,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     /* Zero out DAC level array */
     for (i=0; i < MAX_CHANNELS; i++)
-        g_sys.dacLevel[i] = 0;
+        g_sys.adcLevel[i] = 0;
 
     /*
      * Create the display task
@@ -443,10 +447,10 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     		GPIO_toggle(Board_STAT_LED1);
 
     		/* Read ADC level for channel-1 in slot 2 */
-    		g_sys.dacLevel[0] = ADC_Read_Channel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN1P_AIN1M);
+    		g_sys.adcLevel[0] = ADC_Read_Channel(g_sys.AD7799HandleSlot2, 0);
 
     		/* Read ADC level for channel-2 in slot 2 */
-            g_sys.dacLevel[1] = ADC_Read_Channel(g_sys.AD7799HandleSlot2, AD7799_CH_AIN2P_AIN2M);
+            g_sys.adcLevel[1] = ADC_Read_Channel(g_sys.AD7799HandleSlot2, 1);
 
             //System_printf("chan1=%x chan2=%x\n", g_sys.dacLevel[0], g_sys.dacLevel[1]);
             //System_flush();

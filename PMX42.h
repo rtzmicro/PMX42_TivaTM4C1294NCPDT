@@ -45,18 +45,17 @@
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
 #if (FIRMWARE_MIN_BUILD > FIRMWARE_BUILD)
-#error "X24015 build option FIRMWARE_MIN_BUILD set incorrectly"
+#error "PMX42 build option FIRMWARE_MIN_BUILD set incorrectly"
 #endif
 
 #define MAGIC               0xCEB0FACE  /* magic number for EEPROM data */
 #define MAKEREV(v, r)       ((v << 16) | (r & 0xFFFF))
 
-
-#define ADC_FULLSCALE       0xFFFFFF
-#define ADC_VREF            5.0f
-#define ADC_VSTEP           (ADC_VREF / (float)ADC_FULLSCALE)
-
+#define ADC_VREF            4.096f
 #define ADC_ERROR           0xFFFFFFFF
+
+//#define ADC_FULLSCALE       0xFFFFFF
+//#define ADC_VSTEP           (ADC_VREF / (float)ADC_FULLSCALE)
 
 //*****************************************************************************
 // 128-BIT GUID Structure
@@ -91,7 +90,8 @@ typedef struct _SYSDATA
     MCP79410_Handle handleRTC;
     AD7799_Handle   AD7799HandleSlot1;
     AD7799_Handle   AD7799HandleSlot2;
-    uint32_t        dacLevel[MAX_CHANNELS]; /* ADC DAC levels */
+    uint32_t        adcLevel[MAX_CHANNELS]; /* ADC levels */
+    uint8_t         adcID;
 } SYSDATA;
 
 //*****************************************************************************
