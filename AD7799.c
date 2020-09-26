@@ -90,13 +90,11 @@ AD7799_Handle AD7799_construct(
         AD7799_Object *obj,
         SPI_Handle spiHandle,
         uint32_t gpioCSIndex,
-        uint32_t gpioRDYIndex,
         AD7799_Params *params)
 {
     /* Initialize the object's fields */
     obj->spiHandle = spiHandle;
     obj->gpioCS    = gpioCSIndex;
-    obj->gpioRDY   = gpioRDYIndex;
     obj->adcWordSize = 0;
 
     return (AD7799_Handle)obj;
@@ -109,7 +107,6 @@ AD7799_Handle AD7799_construct(
 AD7799_Handle AD7799_create(
         SPI_Handle spiHandle,
         uint32_t gpioCSIndex,
-        uint32_t gpioRDYIndex,
         AD7799_Params *params)
 {
     AD7799_Handle handle;
@@ -123,7 +120,7 @@ AD7799_Handle AD7799_create(
         return (NULL);
     }
 
-    handle = AD7799_construct(handle, spiHandle, gpioCSIndex, gpioRDYIndex, params);
+    handle = AD7799_construct(handle, spiHandle, gpioCSIndex, params);
 
     return handle;
 }

@@ -228,10 +228,10 @@ bool Init_Peripherals(void)
     spiParams.transferMode    = SPI_MODE_BLOCKING;
     spiParams.transferTimeout = 1000;
     spiParams.frameFormat     = SPI_POL1_PHA1;
-    spiParams.bitRate         = 100000;            /* 500 Khz */
+    spiParams.bitRate         = 100000;            /* 1 Mhz */
     spiParams.dataSize        = 8;
 
-    if ((g_sys.spi12 = SPI_open(Board_SLOT12_SPI, &spiParams)) == NULL)
+    if ((g_sys.spi2 = SPI_open(Board_SPI2, &spiParams)) == NULL)
     {
         System_printf("Error: Unable to open SPI2 port\n");
         System_flush();
@@ -248,10 +248,10 @@ bool Init_Peripherals(void)
     spiParams.transferMode    = SPI_MODE_BLOCKING;
     spiParams.transferTimeout = 1000;
     spiParams.frameFormat     = SPI_POL1_PHA1;
-    spiParams.bitRate         = 100000;             /* 500 Khz */
+    spiParams.bitRate         = 100000;             /* 1 Mhz */
     spiParams.dataSize        = 8;
 
-    if ((g_sys.spi34 = SPI_open(Board_SLOT34_SPI, &spiParams)) == NULL)
+    if ((g_sys.spi3 = SPI_open(Board_SPI3, &spiParams)) == NULL)
     {
         System_printf("Error: Unable to open SPI3 port\n");
         System_flush();
@@ -290,12 +290,12 @@ bool Init_Devices(void)
      * Create and initialize the AD7799 objects.
      */
 
-    if ((g_sys.AD7799HandleSlot1 = AD7799_create(g_sys.spi12, Board_SLOT1_SS, Board_SLOT1_RDY, NULL)) == NULL)
+    if ((g_sys.AD7799Handle1 = AD7799_create(g_sys.spi2, Board_SLOT1_SS, NULL)) == NULL)
     {
         System_abort("AD7799_create failed\n");
     }
 
-    if ((g_sys.AD7799HandleSlot2 = AD7799_create(g_sys.spi12, Board_SLOT2_SS, Board_SLOT2_RDY, NULL)) == NULL)
+    if ((g_sys.AD7799Handle2 = AD7799_create(g_sys.spi2, Board_SLOT2_SS, NULL)) == NULL)
     {
         System_abort("AD7799_create failed\n");
     }
@@ -306,38 +306,38 @@ bool Init_Devices(void)
 
     /* Initialize ADC Channels in slot 1 */
 
-    AD7799_Reset(g_sys.AD7799HandleSlot1);
+    AD7799_Reset(g_sys.AD7799Handle1);
 
-    if ((g_sys.adcID = AD7799_Init(g_sys.AD7799HandleSlot1)) == 0)
+    if ((g_sys.adcID = AD7799_Init(g_sys.AD7799Handle1)) == 0)
     {
        System_printf("AD7799_Init() slot-1 failed\n");
     }
     else
     {
         /* Set gain to 1 */
-        AD7799_SetGain(g_sys.AD7799HandleSlot1, AD7799_GAIN_1);
+        AD7799_SetGain(g_sys.AD7799Handle1, AD7799_GAIN_1);
         /* Set the reference detect */
-        AD7799_SetRefDetect(g_sys.AD7799HandleSlot1, AD7799_REFDET_ENA);
+        AD7799_SetRefDetect(g_sys.AD7799Handle1, AD7799_REFDET_ENA);
         /* Set for unipolar data reading */
-        AD7799_SetUnipolar(g_sys.AD7799HandleSlot2, 1);
+        AD7799_SetUnipolar(g_sys.AD7799Handle2, 1);
     }
 
     /* Initialize ADC Channels in slot 2 */
 
-    AD7799_Reset(g_sys.AD7799HandleSlot2);
+    AD7799_Reset(g_sys.AD7799Handle2);
 
-    if ((g_sys.adcID = AD7799_Init(g_sys.AD7799HandleSlot2)) == 0)
+    if ((g_sys.adcID = AD7799_Init(g_sys.AD7799Handle2)) == 0)
     {
         System_printf("AD7799_Init() slot-2 failed\n");
     }
     else
     {
         /* Set gain to 1 */
-        AD7799_SetGain(g_sys.AD7799HandleSlot2, AD7799_GAIN_1);
+        AD7799_SetGain(g_sys.AD7799Handle2, AD7799_GAIN_1);
         /* Set the reference detect */
-        AD7799_SetRefDetect(g_sys.AD7799HandleSlot2, AD7799_REFDET_ENA);
+        AD7799_SetRefDetect(g_sys.AD7799Handle2, AD7799_REFDET_ENA);
         /* Set for unipolar data reading */
-        AD7799_SetUnipolar(g_sys.AD7799HandleSlot2, AD7799_UNIPOLAR_ENA);
+        AD7799_SetUnipolar(g_sys.AD7799Handle2, AD7799_UNIPOLAR_ENA);
     }
 
     System_flush();
@@ -371,7 +371,7 @@ uint32_t ADC_Read_Channel(AD7799_Handle handle, uint32_t channel)
             data = AD7799_ReadData(handle);
 
             /* Read the current ADC status and check for error */
-            status = AD7799_ReadStatus(g_sys.AD7799HandleSlot2);
+            status = AD7799_ReadStatus(g_sys.AD7799Handle2);
 
             //if (status & AD7799_STAT_ERR)
             //    data = ADC_ERROR;
@@ -447,10 +447,10 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     		GPIO_toggle(Board_STAT_LED1);
 
     		/* Read ADC level for channel-1 in slot 2 */
-    		g_sys.adcLevel[0] = ADC_Read_Channel(g_sys.AD7799HandleSlot2, 0);
+    		g_sys.adcLevel[0] = ADC_Read_Channel(g_sys.AD7799Handle2, 0);
 
     		/* Read ADC level for channel-2 in slot 2 */
-            g_sys.adcLevel[1] = ADC_Read_Channel(g_sys.AD7799HandleSlot2, 1);
+            g_sys.adcLevel[1] = ADC_Read_Channel(g_sys.AD7799Handle2, 1);
 
             //System_printf("chan1=%x chan2=%x\n", g_sys.dacLevel[0], g_sys.dacLevel[1]);
             //System_flush();

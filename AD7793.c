@@ -83,7 +83,7 @@ bool AD7793_Init(void)
 	spiParams.dataSize 		  = 8;
 
 	/* Slots 1 & 2 share quad-speed SPI2 bus */
-	if ((s_spiHandle = SPI_open(Board_SLOT12_SPI, &spiParams)) == NULL)
+	if ((s_spiHandle = SPI_open(Board_SPI2, &spiParams)) == NULL)
 	{
 		System_printf("Error: Unable to open SPI2 port\n");
 		return 0;

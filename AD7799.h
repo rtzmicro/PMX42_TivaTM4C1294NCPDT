@@ -199,7 +199,6 @@ typedef struct AD7799_Params {
 typedef struct AD7799_Object {
     SPI_Handle  spiHandle;      /* SPI handle   */
     uint32_t    gpioCS;         /* chip select  */
-    uint32_t    gpioRDY;        /* RDY gpio pin */
     uint8_t     adcWordSize;    /* 16 or 24 bit */
     uint8_t     adcID;          /* 8 or 9 */
 } AD7799_Object;
@@ -231,7 +230,6 @@ typedef AD7799_Object *AD7799_Handle;
 AD7799_Handle AD7799_construct(AD7799_Object *obj,
                                SPI_Handle spiHandle,
                                uint32_t gpioCSIndex,
-                               uint32_t gpioRDYIndex,
                                AD7799_Params *params);
 
 /*!
@@ -250,10 +248,7 @@ AD7799_Handle AD7799_construct(AD7799_Object *obj,
  *
    @sa     AD7799_delete()
  */
-AD7799_Handle AD7799_create(SPI_Handle spiHandle,
-                            uint32_t gpioCSIndex,
-                            uint32_t gpioRDYIndex,
-                            AD7799_Params *params);
+AD7799_Handle AD7799_create(SPI_Handle spiHandle, uint32_t gpioCSIndex, AD7799_Params *params);
 
 /*!
  *  @brief  Function to delete a AD7799 instance

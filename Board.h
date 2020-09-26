@@ -85,8 +85,8 @@ extern "C" {
 /* Slots 1 and 2 are driven by SPI-2
  * Slots 3 and 4 are driven by SPI-3
  */
-#define Board_SLOT12_SPI            PMX42_SPI2
-#define Board_SLOT34_SPI            PMX42_SPI3
+#define Board_SPI2                  PMX42_SPI2
+#define Board_SPI3                  PMX42_SPI3
 
 #define Board_USBHOST               PMX42_USBHOST
 #define Board_USBDEVICE             PMX42_USBDEVICE
@@ -107,14 +107,8 @@ extern "C" {
 #define Board_SLOT3_SS              PMX42_PQ1_SLOT3_SS
 #define Board_SLOT4_SS              PMX42_PM3_SLOT4_SS
 
-#define Board_SLOT1_RDY             Board_SLOT1_IRQ
-#define Board_SLOT2_RDY             Board_SLOT2_IRQ
-#define Board_SLOT3_RDY             Board_SLOT3_IRQ
-#define Board_SLOT4_RDY             Board_SLOT4_IRQ
-
 #define Board_SLOT1_AD7793_CS1		PMX42_PD2_SLOT1_SS
 #define Board_SLOT1_AD7793_CS2		PMX42_PM4_T4CCP0
-
 #define Board_SLOT2_AD7793_CS1      PMX42_PM2_SLOT2_SS
 #define Board_SLOT2_AD7793_CS2      PMX42_PF1_M0PWM1
 
