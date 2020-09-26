@@ -441,7 +441,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     while (true)
     {
     	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(mailboxCommand, &msgCmd, 500))
+        if (!Mailbox_pend(mailboxCommand, &msgCmd, 250))
         {
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED1);

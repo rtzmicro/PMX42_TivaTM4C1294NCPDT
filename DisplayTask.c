@@ -362,10 +362,10 @@ Void DisplayTaskFxn(UArg arg0, UArg arg1)
     while (true)
     {
     	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxDisplay, &msg, 500))
+        if (!Mailbox_pend(g_mailboxDisplay, &msg, 250))
         {
     		/* Check for display sleep timeout */
-    		if (++secs >= 60 * 5)
+    		if (++secs >= 60 * 30)
     		{
     			/* power down and put the display in sleep mode */
     			FEMA128x64Sleep();
