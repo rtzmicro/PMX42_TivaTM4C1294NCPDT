@@ -197,6 +197,7 @@ void DrawUV(void)
     uint32_t height;
     uint32_t width;
     uint32_t spacing;
+    uint32_t adc;
     tRectangle rect;
     static char buf[128];
     //float v;
@@ -260,7 +261,12 @@ void DrawUV(void)
         else
         {
             /* get the ADC sensor level */
-            level = (float)g_sys.adcLevel[i];
+            adc = g_sys.adcLevel[i];
+
+            if (adc < 0xFF)
+                adc = 0;
+
+            level = (float)adc;
 
             /* The ADC vref is 4.096V */
             fullscale = (g_sys.adcID == AD7798_ID) ?  (float)AD7798_FULLSCALE : (float)AD7799_FULLSCALE;
@@ -276,7 +282,13 @@ void DrawUV(void)
 #endif
             power = level / 6323.07f;
 
-            sprintf(buf, "%d: %.2f", i+1, power);
+            if (power < 1.0f)
+                sprintf(buf, "%d: %.3f", i+1, power);
+            else if (power > 10.0f)
+                sprintf(buf, "%d: %.1f", i+1, power);
+            else
+                sprintf(buf, "%d: %.2f", i+1, power);
+
             //sprintf(buf, "%d: %6x", i, g_sys.adcLevel[i]);
 
             //float percentage = (power / 7.0f) * 100.0f;
