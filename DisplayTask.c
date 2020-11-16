@@ -205,22 +205,16 @@ void DrawInfo(void)
 
     /* Display the program version/revision */
     y = 4;
-    GrContextFontSet(&g_context, g_psFontCm28b);
-    height = GrStringHeightGet(&g_context);
-    GrStringDraw(&g_context, "PMX42", -1, 21, y, 0);
-    y += height;
-
-    /* Switch to fixed system font */
     GrContextFontSet(&g_context, g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
-    len = sprintf(buf, "Firmware v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
-    GrStringDrawCentered(&g_context, buf, len, 1, y, 0);
+    len = sprintf(buf, "PMX42 v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
+    GrStringDrawCentered(&g_context, buf, len, 64, y, 0);
     y += height + spacing;
 
     /* Get the serial number string and display it */
-    len = sprintf(buf, "TCP/IP %s", g_sys.ipAddr);
-    GrStringDrawCentered(&g_context, buf, len, 1, y, 0);
+    len = sprintf(buf, "IP %s", g_sys.ipAddr);
+    GrStringDrawCentered(&g_context, buf, len, 64, y, 0);
 
     y += height + spacing;
 

@@ -211,7 +211,7 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
 
     while ((clientfd = accept(server, (struct sockaddr *)&clientAddr, &addrlen)) != -1)
     {
-        System_printf("tcpHandler: Creating thread clientfd = %d\n", clientfd);
+        System_printf("tcpStateHandler: Creating thread clientfd = %d\n", clientfd);
         System_flush();
 
         /* Init the Error_Block */
@@ -301,6 +301,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
 
             if ((bytesSent = send(clientfd, buf, bytesToSend, 0)) <= 0)
             {
+                System_printf("tcpStateWorker send failed = %d\n", bytesSent);
                 connected = false;
                 break;
             }
