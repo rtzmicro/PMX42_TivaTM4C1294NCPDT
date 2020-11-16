@@ -101,6 +101,7 @@ uint32_t s_adc2 = 0;
 
 /* Static Function Prototypes */
 void DrawUV(void);
+void DrawInfo(void);
 void DrawBarGraph(tRectangle rect, float percent);
 
 //*****************************************************************************
@@ -178,6 +179,7 @@ void DrawScreen(uint32_t uScreenNum)
 			break;
 
 		case 1:
+		    DrawInfo();
 			break;
 
 		default:
@@ -187,6 +189,43 @@ void DrawScreen(uint32_t uScreenNum)
     GrFlush(&g_context);
 }
 
+void DrawInfo(void)
+{
+    int len;
+    char buf[64];
+
+    /* Set foreground pixel color on to 0x01 */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    /* Setup font */
+    uint32_t y;
+    uint32_t height;
+    uint32_t spacing = 4;
+
+    /* Display the program version/revision */
+    y = 4;
+    GrContextFontSet(&g_context, g_psFontCm28b);
+    height = GrStringHeightGet(&g_context);
+    GrStringDraw(&g_context, "PMX42", -1, 21, y, 0);
+    y += height;
+
+    /* Switch to fixed system font */
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
+
+    len = sprintf(buf, "Firmware v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
+    GrStringDrawCentered(&g_context, buf, len, 1, y, 0);
+    y += height + spacing;
+
+    /* Get the serial number string and display it */
+    len = sprintf(buf, "TCP/IP %s", g_sys.ipAddr);
+    GrStringDrawCentered(&g_context, buf, len, 1, y, 0);
+
+    y += height + spacing;
+
+    GrFlush(&g_context);
+}
 
 void DrawUV(void)
 {
