@@ -60,11 +60,12 @@
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "PMX42.h"
+#include "PMX42TCP.h"
 
 #define TCPPORT             1000
 #define TCPPACKETSIZE       256
 #define NUMTCPWORKERS       3
-#define ECHOSERVER          1
+#define ECHOSERVER          0
 
 #ifdef CYASSL_TIRTOS
 #define TCPHANDLERSTACK     8704
@@ -81,6 +82,7 @@ extern SYSDATA g_sys;
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
 Void tcpHandler(UArg arg0, UArg arg1);
 Void tcpWorker(UArg arg0, UArg arg1);
+Void tcpStateWorker(UArg arg0, UArg arg1);
 
 #if (ECHOSERVER == 0)
 static int ReadData(int fd, void *pbuf, int size, int flags);
@@ -283,7 +285,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     size_t      i;
     bool        connected = true;
 
-    PMX42_UVC_STATE stateMsg;
+    PMX42_STATE_MSG stateMsg;
 
     System_printf("tcpStateWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
