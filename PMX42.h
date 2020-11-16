@@ -89,8 +89,9 @@ typedef struct _SYSDATA
     AD7799_Handle   AD7799Handle1;
     AD7799_Handle   AD7799Handle2;
     MCP79410_Handle handleRTC;
-    uint32_t        adcLevel[MAX_CHANNELS]; /* ADC levels */
-    uint8_t         adcID;
+    uint8_t         adcID;                  /* chip ID, 16 or 24 bit type */
+    uint32_t        adcChannels;            /* num of ADC channels active */
+    uint32_t        adcData[MAX_CHANNELS]; /* ADC data value */
 } SYSDATA;
 
 //*****************************************************************************

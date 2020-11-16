@@ -62,10 +62,7 @@
 #include "PMX42.h"
 #include "PMX42TCP.h"
 
-#define TCPPORT             1000
-#define TCPPACKETSIZE       256
-#define NUMTCPWORKERS       3
-#define ECHOSERVER          0
+#define NUMTCPWORKERS       4
 
 #ifdef CYASSL_TIRTOS
 #define TCPHANDLERSTACK     8704
@@ -75,19 +72,17 @@
 
 /* Global PMX42 System data */
 extern SYSDATA g_sys;
-//extern SYSCONFIG g_sysConfig;
 
 /* Prototypes */
 //void netOpenHook(void);
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
-Void tcpHandler(UArg arg0, UArg arg1);
-Void tcpWorker(UArg arg0, UArg arg1);
+Void tcpStateHandler(UArg arg0, UArg arg1);
 Void tcpStateWorker(UArg arg0, UArg arg1);
+Void tcpCommandHandler(UArg arg0, UArg arg1);
+Void tcpCommandWorker(UArg arg0, UArg arg1);
 
-#if (ECHOSERVER == 0)
 static int ReadData(int fd, void *pbuf, int size, int flags);
 static int WriteData(int fd, void *pbuf, int size, int flags);
-#endif
 
 /* External Function Prototypes */
 extern void NtIPN2Str(uint32_t IPAddr, char *str);
@@ -133,12 +128,29 @@ void netOpenHook(void)
 
     taskParams.stackSize = TCPHANDLERSTACK;
     taskParams.priority  = 1;
-    taskParams.arg0      = TCPPORT;
+    taskParams.arg0      = PMX42_PORT_STATE;
 
-    taskHandle = Task_create((Task_FuncPtr)tcpHandler, &taskParams, &eb);
+    taskHandle = Task_create((Task_FuncPtr)tcpStateHandler, &taskParams, &eb);
 
     if (taskHandle == NULL) {
         System_printf("netOpenHook: Failed to create tcpStateHandler Task\n");
+    }
+
+    /* Create the Task that listens for incoming TCP connections
+     * to handle command/response requests. The parameter arg0 will
+     * be the port that this task listens on.
+     */
+
+    Task_Params_init(&taskParams);
+
+    taskParams.stackSize = TCPHANDLERSTACK;
+    taskParams.priority  = 1;
+    taskParams.arg0      = PMX42_PORT_COMMAND;
+
+    taskHandle = Task_create((Task_FuncPtr)tcpCommandHandler, &taskParams, &eb);
+
+    if (taskHandle == NULL) {
+        System_printf("netOpenHook: Failed to create tcpCommandHandler Task\n");
     }
 
     System_flush();
@@ -148,7 +160,7 @@ void netOpenHook(void)
 // LISTENER CREATES TRANSPORT STATE STREAMING WORKER TASK FOR NEW CONNECTIONS.
 //*****************************************************************************
 
-Void tcpHandler(UArg arg0, UArg arg1)
+Void tcpStateHandler(UArg arg0, UArg arg1)
 {
     int                status;
     int                clientfd;
@@ -211,11 +223,8 @@ Void tcpHandler(UArg arg0, UArg arg1)
         taskParams.arg0      = (UArg)clientfd;
         taskParams.stackSize = 1280;
 
-#if (ECHOSERVER != 0)
-        taskHandle = Task_create((Task_FuncPtr)tcpWorker, &taskParams, &eb);
-#else
         taskHandle = Task_create((Task_FuncPtr)tcpStateWorker, &taskParams, &eb);
-#endif
+
         if (taskHandle == NULL) {
             System_printf("Error: Failed to create new Task\n");
             System_flush();
@@ -240,38 +249,6 @@ shutdown:
 }
 
 //*****************************************************************************
-// ECHOS DATA BACK TO CLIENT
-//*****************************************************************************
-
-#if (ECHOSERVER != 0)
-
-Void tcpWorker(UArg arg0, UArg arg1)
-{
-    int  clientfd = (int)arg0;
-    int  bytesRcvd;
-    int  bytesSent;
-    char buffer[TCPPACKETSIZE];
-
-    System_printf("tcpWorker: start clientfd = 0x%x\n", clientfd);
-
-    while ((bytesRcvd = recv(clientfd, buffer, TCPPACKETSIZE, 0)) > 0)
-    {
-        bytesSent = send(clientfd, buffer, bytesRcvd, 0);
-
-        if (bytesSent < 0 || bytesSent != bytesRcvd) {
-            System_printf("Error: send failed.\n");
-            break;
-        }
-    }
-
-    System_printf("tcpWorker stop clientfd = 0x%x\n", clientfd);
-
-    close(clientfd);
-}
-
-#else
-
-//*****************************************************************************
 // STREAMS TRANSPORT STATE CHANGE INFO TO CLIENT. THERE CAN BE MULTIPLE
 // STREAMING STATE WORKER THREADS RUNNING.
 //*****************************************************************************
@@ -293,23 +270,26 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     /* Set initially to send tape time update packet
      * since the client just connected.
      */
-    Event_post(g_eventTransport, Event_Id_00);
+    Event_post(g_eventState, Event_Id_00);
 
     const UInt EVENT_MASK = Event_Id_00|Event_Id_01|Event_Id_02|Event_Id_03|Event_Id_04;
 
     while (connected)
     {
         /* Wait for a position change event from the tape roller position task */
-        UInt events = Event_pend(g_eventTransport, Event_Id_NONE, EVENT_MASK, 2500);
+        UInt events = Event_pend(g_eventState, Event_Id_NONE, EVENT_MASK, 2500);
 
-        int textlen = sizeof(STC_STATE_MSG);
+        memset(&stateMsg, 0, sizeof(PMX42_STATE_MSG));
 
-        stateMsg.length      = textlen;
-        stateMsg.errorCount  = g_sysData.qei_error_cnt;
+        int textlen = sizeof(PMX42_STATE_MSG);
+
+        stateMsg.length       = textlen;
+        stateMsg.adc_channels = g_sys.adcChannels;
+        stateMsg.adc_id       = g_sys.adcID;
 
         /* Copy the track state info */
-        for (i=0; i < STC_MAX_TRACKS; i++)
-            stateMsg.trackState[i] = g_sysData.trackState[i];
+        for (i=0; i < stateMsg.adc_channels; i++)
+            stateMsg.adc_data[i] = g_sys.adcData[i];
 
         /* Prepare to start sending state message buffer */
 
@@ -333,6 +313,171 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     }
 
     System_printf("tcpStateWorker DISCONNECT clientfd = 0x%x\n", clientfd);
+    System_flush();
+
+    close(clientfd);
+}
+
+//*****************************************************************************
+// LISTENER CREATES COMMAND/RESPONSE WORKER TASK FOR NEW CONNECTIONS.
+//*****************************************************************************
+
+Void tcpCommandHandler(UArg arg0, UArg arg1)
+{
+    int                status;
+    int                clientfd;
+    int                server;
+    struct sockaddr_in localAddr;
+    struct sockaddr_in clientAddr;
+    int                optval;
+    int                optlen = sizeof(optval);
+    socklen_t          addrlen = sizeof(clientAddr);
+    Task_Handle        taskHandle;
+    Task_Params        taskParams;
+    Error_Block        eb;
+
+    Task_Handle hSelf = Task_self();
+    fdOpenSession(hSelf);
+
+    server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    if (server == -1) {
+        System_printf("Error: socket not created.\n");
+        goto shutdown;
+    }
+
+    memset(&localAddr, 0, sizeof(localAddr));
+
+    localAddr.sin_family      = AF_INET;
+    localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    localAddr.sin_port        = htons(arg0);
+
+    status = bind(server, (struct sockaddr *)&localAddr, sizeof(localAddr));
+
+    if (status == -1) {
+        System_printf("Error: bind failed.\n");
+            goto shutdown;
+    }
+
+    status = listen(server, NUMTCPWORKERS);
+
+    if (status == -1) {
+        System_printf("Error: listen failed.\n");
+            goto shutdown;
+    }
+
+    optval = 100;
+
+    if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
+        System_printf("Error: setsockopt failed\n");
+        goto shutdown;
+    }
+
+    while ((clientfd = accept(server, (struct sockaddr *)&clientAddr, &addrlen)) != -1)
+    {
+        //System_printf("tcpStateHandler: Creating thread clientfd = %d\n", clientfd);
+        //System_flush();
+
+        /* Init the Error_Block */
+        Error_init(&eb);
+
+        /* Initialize the defaults and set the parameters. */
+        Task_Params_init(&taskParams);
+        taskParams.arg0      = (UArg)clientfd;
+        taskParams.stackSize = 1280;
+
+        taskHandle = Task_create((Task_FuncPtr)tcpCommandWorker, &taskParams, &eb);
+
+        if (taskHandle == NULL) {
+            //System_printf("Error: Failed to create new Task\n");
+            //System_flush();
+            close(clientfd);
+        }
+
+        /* addrlen is a value-result param, must reset for next accept call */
+        addrlen = sizeof(clientAddr);
+    }
+
+    System_printf("Error: accept failed.\n");
+    System_flush();
+
+shutdown:
+
+    System_flush();
+
+    if (server > 0) {
+        close(server);
+    }
+
+    fdClose(hSelf);
+}
+
+//*****************************************************************************
+// HANDLES COMMAND/RESPONSE REQUESTS FROM CLIENT. THERE CAN BE MULTIPLE
+// COMMAND HANDLER WORKER THREADS RUNNING.
+//*****************************************************************************
+
+Void tcpCommandWorker(UArg arg0, UArg arg1)
+{
+    bool        connected = true;
+    int         clientfd = (int)arg0;
+    int         bytesSent;
+    int         bytesRcvd;
+    size_t      index;
+    uint16_t    status;
+
+    PMX42_COMMAND_HDR msg;
+
+    System_printf("tcpCommandWorker: CONNECT clientfd = 0x%x\n", clientfd);
+    System_flush();
+
+    while (connected)
+    {
+        /* Attempt to read a message header */
+        bytesRcvd = ReadData(clientfd, &msg, sizeof(PMX42_COMMAND_HDR), 0);
+
+        if (bytesRcvd <= 0)
+        {
+            System_printf("Error: TCP read error %d.\n", bytesRcvd);
+            connected = FALSE;
+            break;
+        }
+
+        msg.status = status = 0;
+
+        /* Index into cue table or track table */
+        index = (size_t)msg.index;
+
+        /*
+         * Determine which command to process from the client
+         */
+
+        switch(msg.command)
+        {
+        case PMX42_CMD_SETLAMP:
+            /* param1: 0=off, 1=on
+             * param2: not used, zero
+             */
+            break;
+        }
+
+        /* Now send the response packet */
+
+        msg.status  = status;
+        msg.datalen = 0;
+        msg.index   = index;
+
+        bytesSent =  WriteData(clientfd, &msg, sizeof(PMX42_COMMAND_HDR), 0);
+
+        if (bytesSent <= 0)
+        {
+            System_printf("Error: TCP write error %d.\n", bytesSent);
+            connected = false;
+            break;
+        }
+    }
+
+    System_printf("tcpCommandWorker DISCONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
 
     close(clientfd);
@@ -393,7 +538,5 @@ int WriteData(int fd, void *pbuf, int size, int flags)
 
     return bytesSent;
 }
-
-#endif /* ECHOSERVER */
 
 // End-Of-File

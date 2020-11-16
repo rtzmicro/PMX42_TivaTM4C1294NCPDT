@@ -251,7 +251,7 @@ void DrawUV(void)
 
     for (i=0; i < UV_CHANNELS; i++)
     {
-        if (g_sys.adcLevel[i] == ADC_ERROR)
+        if (g_sys.adcData[i] == ADC_ERROR)
         {
             percentage = 0.0f;
 
@@ -261,7 +261,7 @@ void DrawUV(void)
         else
         {
             /* get the ADC sensor level */
-            adc = g_sys.adcLevel[i];
+            adc = g_sys.adcData[i];
 
             if (adc < 0xFF)
                 adc = 0;

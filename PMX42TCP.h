@@ -23,13 +23,13 @@
 // TCP/IP Port Numbers for PMX42 remote server
 // =========================================================================
 
-#define PMX42_PORT_STATE        1200    /* streaming transport state   */
-#define PMX42_PORT_COMMAND      1201    /* transport cmd/response port */
+#define PMX42_PORT_STATE        4200    /* streaming transport state   */
+#define PMX42_PORT_COMMAND      4201    /* transport cmd/response port */
 
 /* Defines the maximum number of tracks supported by any machine.
  * Some machines may have less, like 16 or 8 track machines.
  */
-#define PMX42_MAX_CHANNELS      24      /* max number of audio tracks  */
+#define PMX42_MAX_CHANNELS      8       /* max ADC channels */
 
 // =========================================================================
 // PMX42 state update message structure. This message streams from the PMX42
@@ -42,7 +42,9 @@
 
 typedef struct _PMX42_STATE_MSG {
     uint32_t    length;                 /* size of this msg structure */
-    uint32_t    adc[PMX42_MAX_CHANNELS];
+    uint32_t    adc_id;                 /* ADC ID 16 or 24 bit        */
+    uint32_t    adc_channels;           /* max num of ADC channels    */
+    uint32_t    adc_data[PMX42_MAX_CHANNELS];
 } PMX42_STATE_MSG;
 
 // =========================================================================
@@ -52,7 +54,7 @@ typedef struct _PMX42_STATE_MSG {
 typedef struct _PMX42_COMMAND_HDR {
     uint16_t    hdrlen;                 /* size of this msg structure */
     uint16_t    command;                /* the command ID to execute  */
-    uint16_t    index;                  /* track or cue point index   */
+    uint16_t    index;                  /* ADC channel index          */
     uint16_t    status;                 /* return status/error code   */
     union {
         uint32_t    U;
@@ -71,8 +73,7 @@ typedef struct _PMX42_COMMAND_HDR {
  * Locator Command Message Types for 'PMX42_COMMAND_HDR.command'
  */
 
-#define PMX42_CMD_STOP                1
-#define PMX42_CMD_PLAY                2   /* param0 1=record */
+#define PMX42_CMD_SETLAMP           1   /* params.U 0=off, 1=on       */
 
 #pragma pack(pop)
 

@@ -424,7 +424,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     /* Zero out DAC level array */
     for (i=0; i < MAX_CHANNELS; i++)
-        g_sys.adcLevel[i] = 0;
+        g_sys.adcData[i] = 0;
+
+    g_sys.adcChannels = MAX_CHANNELS;
 
     /*
      * Create the display task
@@ -447,10 +449,10 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     		GPIO_toggle(Board_STAT_LED1);
 
     		/* Read ADC level for channel-1 in slot 2 */
-    		g_sys.adcLevel[0] = ADC_Read_Channel(g_sys.AD7799Handle2, 0);
+    		g_sys.adcData[0] = ADC_Read_Channel(g_sys.AD7799Handle2, 0);
 
     		/* Read ADC level for channel-2 in slot 2 */
-            g_sys.adcLevel[1] = ADC_Read_Channel(g_sys.AD7799Handle2, 1);
+            g_sys.adcData[1] = ADC_Read_Channel(g_sys.AD7799Handle2, 1);
 
             //System_printf("chan1=%x chan2=%x\n", g_sys.dacLevel[0], g_sys.dacLevel[1]);
             //System_flush();
