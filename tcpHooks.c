@@ -174,8 +174,8 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
     Task_Params        taskParams;
     Error_Block        eb;
 
-    Task_Handle hSelf = Task_self();
-    fdOpenSession(hSelf);
+    //Task_Handle hSelf = Task_self();
+    //fdOpenSession(hSelf);
 
     server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
@@ -245,7 +245,7 @@ shutdown:
         close(server);
     }
 
-    fdClose(hSelf);
+    //fdClose(hSelf);
 }
 
 //*****************************************************************************
@@ -337,8 +337,8 @@ Void tcpCommandHandler(UArg arg0, UArg arg1)
     Task_Params        taskParams;
     Error_Block        eb;
 
-    Task_Handle hSelf = Task_self();
-    fdOpenSession(hSelf);
+    //Task_Handle hSelf = Task_self();
+    //fdOpenSession(hSelf);
 
     server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
@@ -410,7 +410,7 @@ shutdown:
         close(server);
     }
 
-    fdClose(hSelf);
+    //fdClose(hSelf);
 }
 
 //*****************************************************************************
