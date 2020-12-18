@@ -104,10 +104,13 @@ SYSCONFIG   g_cfg;
 
 /* Static Function Prototypes */
 
-void gpioButtonHwi(unsigned int index);
-
 static bool Init_Peripherals(void);
 static bool Init_Devices(void);
+
+static uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel);
+
+static void gpioButtonHwi(unsigned int index);
+
 
 //*****************************************************************************
 // Main Entry Point
@@ -219,7 +222,7 @@ bool Init_Peripherals(void)
     }
 
     /*
-     * Slots 1 & 2 share quad-speed SPI-2 bus
+     * SLOTS 1 & 2 share quad-speed SPI-2 bus
      */
 
     SPI_Params_init(&spiParams);
@@ -239,7 +242,7 @@ bool Init_Peripherals(void)
     }
 
     /*
-     * Slots 3 & 4 share quad-speed SPI-3 bus
+     * SLOTS 3 & 4 share quad-speed SPI-3 bus
      */
 
     SPI_Params_init(&spiParams);
@@ -304,7 +307,7 @@ bool Init_Devices(void)
      * Attempt to reset, initialize & detect presence of I/O cards
      */
 
-    /* Initialize ADC Channels in slot 1 */
+    /* Initialize ADC Channels in SLOT-1 */
 
     AD7799_Reset(g_sys.AD7799Handle1);
 
@@ -319,10 +322,10 @@ bool Init_Devices(void)
         /* Set the reference detect */
         AD7799_SetRefDetect(g_sys.AD7799Handle1, AD7799_REFDET_ENA);
         /* Set for unipolar data reading */
-        AD7799_SetUnipolar(g_sys.AD7799Handle2, 1);
+        AD7799_SetUnipolar(g_sys.AD7799Handle1, AD7799_UNIPOLAR_ENA);
     }
 
-    /* Initialize ADC Channels in slot 2 */
+    /* Initialize ADC Channels in SLOT-2 */
 
     AD7799_Reset(g_sys.AD7799Handle2);
 
@@ -350,7 +353,7 @@ bool Init_Devices(void)
 //
 //*****************************************************************************
 
-uint32_t ADC_Read_Channel(AD7799_Handle handle, uint32_t channel)
+uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel)
 {
     uint32_t i;
     uint32_t data = ADC_ERROR;
@@ -371,7 +374,7 @@ uint32_t ADC_Read_Channel(AD7799_Handle handle, uint32_t channel)
             data = AD7799_ReadData(handle);
 
             /* Read the current ADC status and check for error */
-            status = AD7799_ReadStatus(g_sys.AD7799Handle2);
+            status = AD7799_ReadStatus(handle);
 
             //if (status & AD7799_STAT_ERR)
             //    data = ADC_ERROR;
@@ -448,11 +451,17 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED1);
 
-    		/* Read ADC level for channel-1 in slot 2 */
-    		g_sys.adcData[0] = ADC_Read_Channel(g_sys.AD7799Handle2, 0);
+            /* Read ADC level for CHAN-1 in SLOT-1 */
+            g_sys.adcData[0] = AD7799_ReadChannel(g_sys.AD7799Handle1, 0);
 
-    		/* Read ADC level for channel-2 in slot 2 */
-            g_sys.adcData[1] = ADC_Read_Channel(g_sys.AD7799Handle2, 1);
+            /* Read ADC level for CHAN-2 in SLOT-2 */
+            g_sys.adcData[1] = AD7799_ReadChannel(g_sys.AD7799Handle1, 1);
+
+    		/* Read ADC level for CHAN-3 in SLOT-3 */
+    		g_sys.adcData[2] = AD7799_ReadChannel(g_sys.AD7799Handle2, 0);
+
+    		/* Read ADC level for CHAN-4 in SLOT-4 */
+            g_sys.adcData[3] = AD7799_ReadChannel(g_sys.AD7799Handle2, 1);
 
             //System_printf("chan1=%x chan2=%x\n", g_sys.dacLevel[0], g_sys.dacLevel[1]);
             //System_flush();

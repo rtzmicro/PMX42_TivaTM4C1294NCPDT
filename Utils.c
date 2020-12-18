@@ -251,7 +251,7 @@ int ConfigParamsRead(SYSCONFIG* sp)
      */
     if (sp->version != MAKEREV(FIRMWARE_VER, FIRMWARE_REV))
     {
-        System_printf("WARNING New Firmware Version - Using Defaults...\n");
+        System_printf("WARNING New Firmware VERSION - Using Defaults...\n");
         System_flush();
 
         ConfigInitDefaults(sp);
