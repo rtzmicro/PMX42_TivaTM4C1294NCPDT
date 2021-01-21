@@ -205,7 +205,7 @@ bool Init_Peripherals(void)
     I2C_Params  params;
 
     /*
-     * I2C3 shares MCP79410 RTC & AT24MAC serial/MAC parts
+     * I2C0 Bus - Onboard AT24MAC MAC/Serial# part
      */
 
     I2C_Params_init(&params);
@@ -222,7 +222,7 @@ bool Init_Peripherals(void)
     }
 
     /*
-     * SLOTS 1 & 2 share quad-speed SPI-2 bus
+     * SPI2 Bus - Generic use, spans all slots
      */
 
     SPI_Params_init(&spiParams);
@@ -242,7 +242,7 @@ bool Init_Peripherals(void)
     }
 
     /*
-     * SLOTS 3 & 4 share quad-speed SPI-3 bus
+     * SPI3 Bus - Generic use, spans all slots
      */
 
     SPI_Params_init(&spiParams);
@@ -376,8 +376,8 @@ uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel)
             /* Read the current ADC status and check for error */
             status = AD7799_ReadStatus(handle);
 
-            //if (status & AD7799_STAT_ERR)
-            //    data = ADC_ERROR;
+            if (status & AD7799_STAT_ERR)
+                data = ADC_ERROR;
 
             break;
         }

@@ -406,6 +406,8 @@ Void DisplayTaskFxn(UArg arg0, UArg arg1)
 
     DrawWelcome();
 
+    Task_sleep(1000);
+
     while (true)
     {
     	/* Wait for a message up to 1 second */

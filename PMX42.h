@@ -40,7 +40,7 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        2           /* firmware revision */
+#define FIRMWARE_REV        4           /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
@@ -83,6 +83,7 @@ typedef struct _SYSDATA
     uint8_t         ui8MAC[6];              /* 48-bit MAC from EPROM      */
     char            ipAddr[32];             /* IP address from DHCP       */
     /* global runtime data */
+    I2C_Handle      i2c0;                   /* I2C0 MAC/Serial# EPROM     */
     I2C_Handle      i2c3;
     SPI_Handle      spi2;                   /* SPI handle for slots 1 & 2 */
     SPI_Handle      spi3;                   /* SPI handle for slots 3 & 4 */
