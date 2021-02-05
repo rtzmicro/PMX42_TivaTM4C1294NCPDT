@@ -235,7 +235,7 @@ extern void PMX42_initGeneral(void);
  *  The EMAC address is programmed as part of this call.
  *
  */
-extern void PMX42_initEMAC(void);
+extern void PMX42_initEMAC(unsigned char* mac);
 
 /*!
  *  @brief  Initialize board specific GPIO settings

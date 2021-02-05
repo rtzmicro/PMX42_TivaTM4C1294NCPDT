@@ -62,12 +62,12 @@
 #include "PMX42.h"
 #include "PMX42TCP.h"
 
-#define NUMTCPWORKERS       4
+#define NUMTCPWORKERS       2
 
 #ifdef CYASSL_TIRTOS
 #define TCPHANDLERSTACK     8704
 #else
-#define TCPHANDLERSTACK     1024
+#define TCPHANDLERSTACK     2048
 #endif
 
 /* Global PMX42 System data */
@@ -75,7 +75,7 @@ extern SYSDATA g_sys;
 
 /* Prototypes */
 //void netOpenHook(void);
-void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
+Void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
 Void tcpStateHandler(UArg arg0, UArg arg1);
 Void tcpStateWorker(UArg arg0, UArg arg1);
 Void tcpCommandHandler(UArg arg0, UArg arg1);
@@ -95,7 +95,7 @@ extern void NtIPN2Str(uint32_t IPAddr, char *str);
 // address from a DHCP server. We store this in our runtime data
 // structure for use later.
 
-void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
+Void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
 {
     if (fAdd)
         NtIPN2Str(IPAddr, g_sys.ipAddr);
@@ -105,6 +105,39 @@ void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
     System_printf("netIPUpdate() dhcp->%s\n", g_sys.ipAddr);
     System_flush();
 }
+
+Void netStatusReportHook(unsigned int Item, unsigned int Status, unsigned int Report, unsigned int handle)
+{
+    System_printf("netStatusReportHook() item=%d, status=%d\n", Item, Status);
+    System_flush();
+}
+
+
+#if 0
+void readIPAddr()
+{
+    CI_IPNET NA;
+
+    HANDLE      hCfgIpAddr;
+
+    /* Setup manual IP address */
+    bzero(&NA, sizeof(NA));
+    NA.IPAddr  = inet_addr("146.252.161.45");
+    NA.IPMask  = inet_addr("255.255.254.0");
+    strcpy(NA.Domain, "demo.net");
+    NA.NetType = 0;
+
+    /* get the current static IP entry */
+    CfgGetEntry(0, CFGTAG_IPNET, 1, 1, &hCfgIpAddr);
+
+    /* remove the current static IP entry */
+    CfgRemoveEntry(0, hCfgIpAddr);
+
+    /* add a new static IP entry */
+    CfgAddEntry(0, CFGTAG_IPNET, 1, 0,
+            sizeof(CI_IPNET), (UINT8 *)&NA, 0);
+}
+#endif
 
 //*****************************************************************************
 // NDK network open hook used to initialize IPv6
@@ -116,18 +149,16 @@ void netOpenHook(void)
     Task_Params taskParams;
     Error_Block eb;
 
-    /* Make sure Error_Block is initialized */
-    Error_init(&eb);
-
     /* Create the task that listens for incoming TCP connections
      * to handle streaming transport state info. The parameter arg0
      * will be the port that this task listens on.
      */
 
+    Error_init(&eb);
     Task_Params_init(&taskParams);
 
     taskParams.stackSize = TCPHANDLERSTACK;
-    taskParams.priority  = 1;
+    taskParams.priority  = 2;
     taskParams.arg0      = PMX42_PORT_STATE;
 
     taskHandle = Task_create((Task_FuncPtr)tcpStateHandler, &taskParams, &eb);
@@ -140,11 +171,12 @@ void netOpenHook(void)
      * to handle command/response requests. The parameter arg0 will
      * be the port that this task listens on.
      */
-
+#if 0
+    Error_init(&eb);
     Task_Params_init(&taskParams);
 
     taskParams.stackSize = TCPHANDLERSTACK;
-    taskParams.priority  = 1;
+    taskParams.priority  = 3;
     taskParams.arg0      = PMX42_PORT_COMMAND;
 
     taskHandle = Task_create((Task_FuncPtr)tcpCommandHandler, &taskParams, &eb);
@@ -152,8 +184,9 @@ void netOpenHook(void)
     if (taskHandle == NULL) {
         System_printf("netOpenHook: Failed to create tcpCommandHandler Task\n");
     }
-
+#endif
     System_flush();
+
 }
 
 //*****************************************************************************
@@ -220,8 +253,9 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
         /* Initialize the defaults and set the parameters. */
         Task_Params_init(&taskParams);
 
+        taskParams.priority  = 2;
         taskParams.arg0      = (UArg)clientfd;
-        taskParams.stackSize = 1280;
+        taskParams.stackSize = 1560;
 
         taskHandle = Task_create((Task_FuncPtr)tcpStateWorker, &taskParams, &eb);
 
@@ -384,6 +418,7 @@ Void tcpCommandHandler(UArg arg0, UArg arg1)
 
         /* Initialize the defaults and set the parameters. */
         Task_Params_init(&taskParams);
+        taskParams.priority  = 2;
         taskParams.arg0      = (UArg)clientfd;
         taskParams.stackSize = 1280;
 

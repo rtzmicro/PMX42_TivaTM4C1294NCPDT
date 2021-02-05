@@ -14,18 +14,24 @@
 
 /*** CONSTANTS AND CONFIGURATION *******************************************/
 
+typedef enum ScreenNum {
+    SCREEN_ABOUT=0,
+    SCREEN_INFO,
+    SCREEN_UV,
+
+} ScreenNum;
+
+#define SCREEN_FIRST    SCREEN_ABOUT
+#define SCREEN_LAST     SCREEN_UV
 
 /*** SYSTEM CONFIG PARAMETERS STORED IN EPROM ******************************/
 
 typedef enum DisplayCommand{
-	SCREEN_REFRESH,
-    SCREEN_SET,
-    SCREEN_NEXT,
-	SCREEN_PREV,
+	DISPLAY_DRAW,
 } DisplayCommand;
 
 typedef struct DisplayMessage{
-    DisplayCommand	dispCommand;
+    DisplayCommand	dispCmd;
     uint32_t		dispArg1;
     uint32_t		dispArg2;
 } DisplayMessage;
@@ -34,7 +40,9 @@ typedef struct DisplayMessage{
 
 Void DisplayTaskFxn(UArg arg0, UArg arg1);
 
-void ClearDisplay(void);
-void DrawWelcome(void);
+Bool DisplayRefresh(void);
+
+ScreenNum DisplaySetScreen(ScreenNum screen);
+ScreenNum DisplayGetScreen(void);
 
 #endif /* __DISPLAYTASK_H */

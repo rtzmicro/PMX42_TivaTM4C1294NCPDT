@@ -259,9 +259,9 @@ const EMAC_Config EMAC_config[] = {
  *
  */
 
-void PMX42_initEMAC(void)
+void PMX42_initEMAC(unsigned char* mac)
 {
-    memcpy(macAddress, g_sys.ui8MAC, 6);
+    memcpy(macAddress, mac, 6);
 
 #if 0
     uint32_t ulUser0, ulUser1;
@@ -324,17 +324,17 @@ void PMX42_initEMAC(void)
 GPIO_PinConfig gpioPinConfigs[] = {
     /* Input Interrupt pins */
     /* PMX42_BTN_SW1 */
-    GPIOTiva_PN_0 | GPIO_CFG_IN_PU | GPIO_CFG_IN_INT_RISING,
+    GPIOTiva_PN_0 | GPIO_CFG_IN_NOPULL | GPIO_CFG_IN_INT_LOW,
     /* PMX42_BTN_SW2 */
-    GPIOTiva_PN_1 | GPIO_CFG_IN_PU | GPIO_CFG_IN_INT_RISING,
+    GPIOTiva_PN_1 | GPIO_CFG_IN_NOPULL | GPIO_CFG_IN_INT_LOW,
     /* PMX42_BTN_SW3 */
-    GPIOTiva_PN_2 | GPIO_CFG_IN_PU | GPIO_CFG_IN_INT_RISING,
+    GPIOTiva_PN_2 | GPIO_CFG_IN_NOPULL | GPIO_CFG_IN_INT_LOW,
     /* PMX42_BTN_SW4 */
-    GPIOTiva_PN_3 | GPIO_CFG_IN_PU | GPIO_CFG_IN_INT_RISING,
+    GPIOTiva_PN_3 | GPIO_CFG_IN_NOPULL | GPIO_CFG_IN_INT_LOW,
     /* PMX42_BTN_SW5 */
-    GPIOTiva_PN_4 | GPIO_CFG_IN_PU | GPIO_CFG_IN_INT_RISING,
+    GPIOTiva_PN_4 | GPIO_CFG_IN_NOPULL | GPIO_CFG_IN_INT_LOW,
     /* PMX42_BTN_SW6 */
-    GPIOTiva_PN_5 | GPIO_CFG_IN_PU | GPIO_CFG_IN_INT_RISING,
+    GPIOTiva_PN_5 | GPIO_CFG_IN_NOPULL | GPIO_CFG_IN_INT_LOW,
 
     /* PMX42_SLOT1_IRQ */
     GPIOTiva_PL_2 | GPIO_CFG_IN_PU,

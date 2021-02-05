@@ -92,7 +92,8 @@ typedef struct _SYSDATA
     MCP79410_Handle handleRTC;
     uint8_t         adcID;                  /* chip ID, 16 or 24 bit type */
     uint32_t        adcChannels;            /* num of ADC channels active */
-    uint32_t        adcData[MAX_CHANNELS]; /* ADC data value */
+    uint32_t        adcData[MAX_CHANNELS];  /* the ADC sample value read  */
+    RTCC_Struct     timeRTC;
 } SYSDATA;
 
 //*****************************************************************************
@@ -119,10 +120,12 @@ typedef enum CommandType{
 typedef struct CommandMessage{
     CommandType		command;
     uint32_t 		ui32Data;
+    uint32_t        ui32Mask;
 } CommandMessage;
 
 int main(void);
 Void CommandTaskFxn(UArg arg0, UArg arg1);
+Void SampleTaskFxn(UArg arg0, UArg arg1);
 int ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]);
 
 #endif /* __PMX42_H */

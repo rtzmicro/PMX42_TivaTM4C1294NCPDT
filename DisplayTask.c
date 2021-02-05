@@ -94,15 +94,14 @@ extern Mailbox_Handle g_mailboxDisplay;
 extern SYSDATA g_sys;
 
 /* Static Module Globals */
-uint32_t s_uScreenNum = 0;
-uint32_t s_uSampleCount = 0;
-uint32_t s_adc1 = 0;
-uint32_t s_adc2 = 0;
+static ScreenNum s_uScreenNum = SCREEN_UV;
 
 /* Static Function Prototypes */
-void DrawUV(void);
-void DrawInfo(void);
-void DrawBarGraph(tRectangle rect, float percent);
+static void ClearDisplay(void);
+static void DrawAbout(void);
+static void DrawUV(void);
+static void DrawInfo(void);
+static void PlotUVBarGraph(tRectangle rect, float percent);
 
 //*****************************************************************************
 //
@@ -120,7 +119,7 @@ void ClearDisplay(void)
 //
 //*****************************************************************************
 
-void DrawWelcome(void)
+void DrawAbout(void)
 {
 	char buf[64];
 
@@ -165,29 +164,8 @@ void DrawWelcome(void)
 }
 
 //*****************************************************************************
-// Display the curreent measurement screen data
+//
 //*****************************************************************************
-
-void DrawScreen(uint32_t uScreenNum)
-{
-    ClearDisplay();
-
-    switch(uScreenNum)
-    {
-		case 0:
-		    DrawUV();
-			break;
-
-		case 1:
-		    DrawInfo();
-			break;
-
-		default:
-			break;
-    }
-
-    GrFlush(&g_context);
-}
 
 void DrawInfo(void)
 {
@@ -210,16 +188,30 @@ void DrawInfo(void)
 
     len = sprintf(buf, "PMX42 v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
     GrStringDrawCentered(&g_context, buf, len, 64, y, 0);
+    y += height + (spacing * 2);
+
+    /* Display the TCP/IP address if set */
+    if (!strlen(g_sys.ipAddr))
+        len = sprintf(buf, "(NO NETWORK OR DHCP)");
+    else
+        len = sprintf(buf, "IP %s", g_sys.ipAddr);
+    GrStringDrawCentered(&g_context, buf, len, 64, y, 0);
     y += height + spacing;
 
-    /* Get the serial number string and display it */
-    len = sprintf(buf, "IP %s", g_sys.ipAddr);
-    GrStringDrawCentered(&g_context, buf, len, 64, y, 0);
+    /* Format the current time/date and display it */
 
+    len = sprintf(buf, "%d:%02d:%02d %d/%d/%d",
+            g_sys.timeRTC.hour, g_sys.timeRTC.min, g_sys.timeRTC.sec,
+            g_sys.timeRTC.month, g_sys.timeRTC.date, g_sys.timeRTC.year + 2000);
+    GrStringDrawCentered(&g_context, buf, len, 64, y, 0);
     y += height + spacing;
 
     GrFlush(&g_context);
 }
+
+//*****************************************************************************
+//
+//*****************************************************************************
 
 void DrawUV(void)
 {
@@ -335,13 +327,17 @@ void DrawUV(void)
         rect.i16XMax = SCREEN_WIDTH - 1;
         rect.i16YMax = (height - 2) + rect.i16YMin;
 
-        DrawBarGraph(rect, percentage);
+        PlotUVBarGraph(rect, percentage);
 
         y += height + spacing;
     }
 }
 
-void DrawBarGraph(tRectangle rect, float percent)
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void PlotUVBarGraph(tRectangle rect, float percent)
 {
     int32_t x;
     tRectangle rect2;
@@ -382,6 +378,35 @@ void DrawBarGraph(tRectangle rect, float percent)
 }
 
 //*****************************************************************************
+// Display the current measurement screen data
+//*****************************************************************************
+
+void DrawScreen(uint32_t uScreenNum)
+{
+    ClearDisplay();
+
+    switch(uScreenNum)
+    {
+    case SCREEN_ABOUT:
+        DrawAbout();
+        break;
+
+    case SCREEN_INFO:
+        DrawInfo();
+        break;
+
+    case SCREEN_UV:
+        DrawUV();
+        break;
+
+    default:
+        break;
+    }
+
+    GrFlush(&g_context);
+}
+
+//*****************************************************************************
 // OLED Display Drawing task
 //
 // It is pending for the message either from console task or from button ISR.
@@ -404,9 +429,9 @@ Void DisplayTaskFxn(UArg arg0, UArg arg1)
 
     ClearDisplay();
 
-    DrawWelcome();
+    DrawAbout();
 
-    Task_sleep(1000);
+    Task_sleep(500);
 
     while (true)
     {
@@ -422,11 +447,12 @@ Void DisplayTaskFxn(UArg arg0, UArg arg1)
     			screensave = 1;
     		}
 
-    		if (!screensave)
-    			DrawScreen(s_uScreenNum);
+            if (!screensave)
+                DrawScreen(s_uScreenNum);
 
     		continue;
         }
+
 
         /* Reset the screensaver timeout */
 		secs = 0;
@@ -434,45 +460,71 @@ Void DisplayTaskFxn(UArg arg0, UArg arg1)
         /* Check if screen saver is active and wakeup if so */
 		if (screensave)
 		{
+		    /* Reset screen save state flag to off */
 			screensave = 0;
 			/* Wakeup the screen and power it up */
 			FEMA128x64Wake();
-			/* Discard button press and force a screen refresh */
-        	msg.dispCommand = SCREEN_REFRESH;
 		}
 
 		//System_printf("cmd=%d\n", msg.dispCommand);
 		//System_flush();
 
-		switch(msg.dispCommand)
-		{
-        case SCREEN_SET:
-        	if (msg.dispArg1 < LAST_SCREEN)
-        		s_uScreenNum = msg.dispArg1;
-        	DrawScreen(s_uScreenNum);
-            break;
-
-        case SCREEN_NEXT:
-        	++s_uScreenNum;
-        	if (s_uScreenNum > LAST_SCREEN)
-        		s_uScreenNum = 0;
-        	DrawScreen(s_uScreenNum);
-            break;
-
-        case SCREEN_PREV:
-        	if (s_uScreenNum)
-        		--s_uScreenNum;
-        	else if (!s_uScreenNum)
-        		s_uScreenNum = LAST_SCREEN;
-        	DrawScreen(s_uScreenNum);
-            break;
-
-        case SCREEN_REFRESH:
-        default:
-        	DrawScreen(s_uScreenNum);
-            break;
-        }
+		DrawScreen(s_uScreenNum);
     }
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+ScreenNum DisplaySetScreen(ScreenNum screen)
+{
+    DisplayMessage msg;
+
+    if (screen > SCREEN_LAST)
+        screen = SCREEN_LAST;
+
+    /* Save the current screen number requested */
+    s_uScreenNum = screen;
+
+    /* Post a message to the display task to redraw and up the display */
+
+    msg.dispCmd  = DISPLAY_DRAW;
+    msg.dispArg1 = 0;
+    msg.dispArg2 = 0;
+
+    Mailbox_post(g_mailboxDisplay, &msg, BIOS_NO_WAIT);
+
+    return screen;
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+Bool DisplayRefresh(void)
+{
+    Bool success;
+
+    DisplayMessage msg;
+
+    /* Post a message to the display task to redraw and up the display */
+    msg.dispCmd  = DISPLAY_DRAW;
+    msg.dispArg1 = 0;
+    msg.dispArg2 = 0;
+
+    success = Mailbox_post(g_mailboxDisplay, &msg, BIOS_NO_WAIT);
+
+    return success;
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+ScreenNum DisplayGetScreen(void)
+{
+    return s_uScreenNum;
 }
 
 // End-Of-File

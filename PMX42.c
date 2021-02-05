@@ -88,7 +88,7 @@
 #include "usb_device.h"
 
 /* Debounce time for buttons */
-#define DEBOUNCE_TIME       40
+#define DEBOUNCE_TIME       100
 
 /* Global context for drawing */
 tContext g_context;
@@ -97,20 +97,15 @@ tContext g_context;
 Mailbox_Handle g_mailboxDisplay = NULL;
 Mailbox_Handle mailboxCommand = NULL;
 
+/* Global Data Items */
 SYSDATA     g_sys;
 SYSCONFIG   g_cfg;
 
-/* External Data Items */
-
 /* Static Function Prototypes */
-
 static bool Init_Peripherals(void);
 static bool Init_Devices(void);
-
-static uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel);
-
 static void gpioButtonHwi(unsigned int index);
-
+static uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel);
 
 //*****************************************************************************
 // Main Entry Point
@@ -192,6 +187,19 @@ int main(void)
     BIOS_start();
 
     return (0);
+}
+
+//*****************************************************************************
+// This is a hook into the NDK stack to allow delaying execution of the NDK
+// stack task until after we load the MAC address from the AT24MAC serial
+// EPROM part. This hook blocks on a semaphore until after we're able to call
+// Board_initEMAC() in the CommandTaskFxn() below. This mechanism allows us
+// to delay execution until we load the MAC from EPROM.
+//*****************************************************************************
+
+void NDKStackBeginHook(void)
+{
+    Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
 }
 
 //*****************************************************************************
@@ -399,7 +407,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     Error_Block eb;
 	Task_Params taskParams;
     CommandMessage msgCmd;
-    DisplayMessage msgDisp;
 
     /* Open the peripherals we plan to use */
     Init_Peripherals();
@@ -417,7 +424,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     }
 
     /* STEP-2 - Don't initialize EMAC layer until after reading MAC address above! */
-    Board_initEMAC();
+    Board_initEMAC(g_sys.ui8MAC);
 
     /* STEP-3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
     Semaphore_post(g_semaNDKStartup);
@@ -431,65 +438,84 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     g_sys.adcChannels = MAX_CHANNELS;
 
+    /* Initialize the RTC clock if it's not running */
+
+    if (!MCP79410_IsRunning(g_sys.handleRTC))
+    {
+        RTCC_Struct ts;
+
+        ts.hour    = (uint8_t)18;
+        ts.min     = (uint8_t)15;
+        ts.sec     = (uint8_t)30;
+        ts.month   = (uint8_t)2;
+        ts.date    = (uint8_t)4;
+        ts.weekday = (uint8_t)0;
+        ts.year    = (uint8_t)(2021 - 2000);
+
+        MCP79410_Initialize(g_sys.handleRTC, &ts, H24);
+    }
+
     /*
      * Create the display task
      */
 
     Error_init(&eb);
+
+    /* Startup the OLED Display Task */
+
     Task_Params_init(&taskParams);
+
     taskParams.stackSize = 2048;
-    taskParams.priority  = 5;
+    taskParams.priority  = 9;
     Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
 
-    /* Now begin the main program command task processing loop */
+    Error_init(&eb);
+
+    /* Startup the ADC sample read task */
+
+    Task_Params_init(&taskParams);
+
+    taskParams.stackSize = 2048;
+    taskParams.priority  = 10;
+    Task_create((Task_FuncPtr)SampleTaskFxn, &taskParams, &eb);
+    Error_init(&eb);
+
+    /*
+     * Now begin the main program loop processing button press events
+     */
 
     while (true)
     {
     	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(mailboxCommand, &msgCmd, 250))
+        if (!Mailbox_pend(mailboxCommand, &msgCmd, BIOS_WAIT_FOREVER))
         {
-        	/* No message, blink the LED */
-    		GPIO_toggle(Board_STAT_LED1);
-
-            /* Read ADC level for CHAN-1 in SLOT-1 */
-            g_sys.adcData[0] = AD7799_ReadChannel(g_sys.AD7799Handle1, 0);
-
-            /* Read ADC level for CHAN-2 in SLOT-2 */
-            g_sys.adcData[1] = AD7799_ReadChannel(g_sys.AD7799Handle1, 1);
-
-    		/* Read ADC level for CHAN-3 in SLOT-3 */
-    		g_sys.adcData[2] = AD7799_ReadChannel(g_sys.AD7799Handle2, 0);
-
-    		/* Read ADC level for CHAN-4 in SLOT-4 */
-            g_sys.adcData[3] = AD7799_ReadChannel(g_sys.AD7799Handle2, 1);
-
-            //System_printf("chan1=%x chan2=%x\n", g_sys.dacLevel[0], g_sys.dacLevel[1]);
-            //System_flush();
             continue;
         }
 
         if (msgCmd.command == BUTTONPRESS)
         {
             bool buttonValid = true;
-            unsigned int index = msgCmd.ui32Data;
+            uint32_t index = msgCmd.ui32Data;
+            ScreenNum screen;
 
             switch(msgCmd.ui32Data)
             {
             case Board_BTN_SW1:
-                msgDisp.dispCommand = SCREEN_NEXT;
-                Mailbox_post(g_mailboxDisplay, &msgDisp, BIOS_NO_WAIT);
+                screen = DisplayGetScreen();
+                if (++screen > SCREEN_LAST)
+                    screen = SCREEN_FIRST;
+                DisplaySetScreen(screen);
                 break;
 
             case Board_BTN_SW2:
-                msgDisp.dispCommand = SCREEN_PREV;
-                Mailbox_post(g_mailboxDisplay, &msgDisp, BIOS_NO_WAIT);
+                if (DisplayGetScreen() == SCREEN_FIRST)
+                    screen = SCREEN_LAST;
+                else
+                    --screen;
+                DisplaySetScreen(screen);
                 break;
 
             case Board_BTN_SW3:
-                /* Toggle temp display mode */
-                /* Update the screen */
-                msgDisp.dispCommand = SCREEN_REFRESH;
-                Mailbox_post(g_mailboxDisplay, &msgDisp, BIOS_NO_WAIT);
                 break;
 
             case Board_BTN_SW4:
@@ -510,23 +536,16 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
             if (buttonValid)
             {
-                uint32_t i;
-
-                /* Some debounce time for the button */
+                /* Debounce after button was pressed */
                 Task_sleep(DEBOUNCE_TIME);
 
-                /* Wait for button to release, then re-enable interrupt */
-                for (i=0; i < 100; i++)
-                {
-                    if (GPIO_read(index))
-                        break;
+                /* Now wait for the button to release */
+                while (!(GPIO_read(index)));
 
-                    Task_sleep(10);
-                }
-
+                /* Debounce after button released */
                 Task_sleep(DEBOUNCE_TIME);
 
-                /* Re-enable the interrupt for the button pressed */
+                /* Now re-enable button press interrupt again */
                 GPIO_enableInt(index);
             }
         }
@@ -534,16 +553,38 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 }
 
 //*****************************************************************************
-// This is a hook into the NDK stack to allow delaying execution of the NDK
-// stack task until after we load the MAC address from the AT24MAC serial
-// EPROM part. This hook blocks on a semaphore until after we're able to call
-// Board_initEMAC() in the CommandTaskFxn() below. This mechanism allows us
-// to delay execution until we load the MAC from EPROM.
+//
+//
 //*****************************************************************************
 
-void NDKStackBeginHook(void)
+Void SampleTaskFxn(UArg arg0, UArg arg1)
 {
-    Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
+    while(1)
+    {
+        /* No message, blink the LED */
+        GPIO_toggle(Board_STAT_LED1);
+
+        /* Read the current date/time stamp from the RTC */
+        MCP79410_GetTime(g_sys.handleRTC, &g_sys.timeRTC);
+
+        /* Read ADC level for CHAN-1 in SLOT-1 */
+        g_sys.adcData[0] = AD7799_ReadChannel(g_sys.AD7799Handle1, 0);
+
+        /* Read ADC level for CHAN-2 in SLOT-2 */
+        g_sys.adcData[1] = AD7799_ReadChannel(g_sys.AD7799Handle1, 1);
+
+        /* Read ADC level for CHAN-3 in SLOT-3 */
+        g_sys.adcData[2] = AD7799_ReadChannel(g_sys.AD7799Handle2, 0);
+
+        /* Read ADC level for CHAN-4 in SLOT-4 */
+        g_sys.adcData[3] = AD7799_ReadChannel(g_sys.AD7799Handle2, 1);
+
+        /* Now tell the display task to refresh */
+        DisplayRefresh();
+
+        /* Sleep a bit before next sample reads */
+        Task_sleep(500);
+    }
 }
 
 //*****************************************************************************
@@ -552,26 +593,25 @@ void NDKStackBeginHook(void)
 
 void gpioButtonHwi(unsigned int index)
 {
-	uint32_t btn;
+	uint32_t mask;
     CommandMessage msg;
 
-	/* GPIO pin interrupt occurred, read current button state mask */
-    btn = GPIO_read(index);
+	/* GPIO pin interrupt occurred, read button state */
+    mask = GPIO_read(index);
 
     GPIO_clearInt(index);
 
-    if (btn)
-    {
-        /* Disable interrupt for now, the command task will
-         * re-enable this after it processes the button press
-         * message and debounces the button press.
-         */
-        GPIO_disableInt(index);
+    /* Disable interrupt for now, the command task will
+     * re-enable this after it processes the button press
+     * message and debounces the button press.
+     */
+    GPIO_disableInt(index);
 
-        msg.command  = BUTTONPRESS;
-        msg.ui32Data = index;
-        Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
-    }
+    msg.command  = BUTTONPRESS;
+    msg.ui32Data = index;
+    msg.ui32Mask = mask;
+
+    Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
 }
 
 // End-Of-File
