@@ -143,7 +143,7 @@ void readIPAddr()
 // NDK network open hook used to initialize IPv6
 //*****************************************************************************
 
-void netOpenHook(void)
+Void netOpenHook(void)
 {
     Task_Handle taskHandle;
     Task_Params taskParams;

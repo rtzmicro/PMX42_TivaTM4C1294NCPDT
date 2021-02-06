@@ -88,7 +88,7 @@
 #include "usb_device.h"
 
 /* Debounce time for buttons */
-#define DEBOUNCE_TIME       100
+#define DEBOUNCE_TIME       50
 
 /* Global context for drawing */
 tContext g_context;
@@ -197,7 +197,7 @@ int main(void)
 // to delay execution until we load the MAC from EPROM.
 //*****************************************************************************
 
-void NDKStackBeginHook(void)
+Void NDKStackBeginHook(void)
 {
     Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
 }
@@ -397,6 +397,68 @@ uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel)
 }
 
 //*****************************************************************************
+// HWI Callback function for front panel push button interrupts.
+//*****************************************************************************
+
+void gpioButtonHwi(unsigned int index)
+{
+    uint32_t mask;
+    CommandMessage msg;
+
+    /* GPIO pin interrupt occurred, read button state */
+    mask = GPIO_read(index);
+
+    GPIO_clearInt(index);
+
+    /* Disable interrupt for now, the command task will
+     * re-enable this after it processes the button press
+     * message and debounces the button press.
+     */
+    GPIO_disableInt(index);
+
+    msg.command  = BUTTONPRESS;
+    msg.ui32Data = index;
+    msg.ui32Mask = mask;
+
+    Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
+}
+
+//*****************************************************************************
+//
+//
+//*****************************************************************************
+
+Void SampleTaskFxn(UArg arg0, UArg arg1)
+{
+    while(1)
+    {
+        /* No message, blink the LED */
+        GPIO_toggle(Board_STAT_LED1);
+
+        /* Read the current date/time stamp from the RTC */
+        MCP79410_GetTime(g_sys.handleRTC, &g_sys.timeRTC);
+
+        /* Read ADC level for CHAN-1 in SLOT-1 */
+        g_sys.adcData[0] = AD7799_ReadChannel(g_sys.AD7799Handle1, 0);
+
+        /* Read ADC level for CHAN-2 in SLOT-2 */
+        g_sys.adcData[1] = AD7799_ReadChannel(g_sys.AD7799Handle1, 1);
+
+        /* Read ADC level for CHAN-3 in SLOT-3 */
+        g_sys.adcData[2] = AD7799_ReadChannel(g_sys.AD7799Handle2, 0);
+
+        /* Read ADC level for CHAN-4 in SLOT-4 */
+        g_sys.adcData[3] = AD7799_ReadChannel(g_sys.AD7799Handle2, 1);
+
+        /* Now tell the display task to refresh */
+        DisplayRefresh();
+
+        /* Sleep a bit before next sample reads */
+        Task_sleep(500);
+    }
+}
+
+//*****************************************************************************
 //
 //
 //*****************************************************************************
@@ -459,26 +521,21 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
      * Create the display task
      */
 
-    Error_init(&eb);
-
     /* Startup the OLED Display Task */
 
+    Error_init(&eb);
     Task_Params_init(&taskParams);
-
     taskParams.stackSize = 2048;
     taskParams.priority  = 9;
     Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
 
-    Error_init(&eb);
-
     /* Startup the ADC sample read task */
 
+    Error_init(&eb);
     Task_Params_init(&taskParams);
-
     taskParams.stackSize = 2048;
     taskParams.priority  = 10;
     Task_create((Task_FuncPtr)SampleTaskFxn, &taskParams, &eb);
-    Error_init(&eb);
 
     /*
      * Now begin the main program loop processing button press events
@@ -550,68 +607,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
             }
         }
     }
-}
-
-//*****************************************************************************
-//
-//
-//*****************************************************************************
-
-Void SampleTaskFxn(UArg arg0, UArg arg1)
-{
-    while(1)
-    {
-        /* No message, blink the LED */
-        GPIO_toggle(Board_STAT_LED1);
-
-        /* Read the current date/time stamp from the RTC */
-        MCP79410_GetTime(g_sys.handleRTC, &g_sys.timeRTC);
-
-        /* Read ADC level for CHAN-1 in SLOT-1 */
-        g_sys.adcData[0] = AD7799_ReadChannel(g_sys.AD7799Handle1, 0);
-
-        /* Read ADC level for CHAN-2 in SLOT-2 */
-        g_sys.adcData[1] = AD7799_ReadChannel(g_sys.AD7799Handle1, 1);
-
-        /* Read ADC level for CHAN-3 in SLOT-3 */
-        g_sys.adcData[2] = AD7799_ReadChannel(g_sys.AD7799Handle2, 0);
-
-        /* Read ADC level for CHAN-4 in SLOT-4 */
-        g_sys.adcData[3] = AD7799_ReadChannel(g_sys.AD7799Handle2, 1);
-
-        /* Now tell the display task to refresh */
-        DisplayRefresh();
-
-        /* Sleep a bit before next sample reads */
-        Task_sleep(500);
-    }
-}
-
-//*****************************************************************************
-// HWI Callback function for front panel push button interrupts.
-//*****************************************************************************
-
-void gpioButtonHwi(unsigned int index)
-{
-	uint32_t mask;
-    CommandMessage msg;
-
-	/* GPIO pin interrupt occurred, read button state */
-    mask = GPIO_read(index);
-
-    GPIO_clearInt(index);
-
-    /* Disable interrupt for now, the command task will
-     * re-enable this after it processes the button press
-     * message and debounces the button press.
-     */
-    GPIO_disableInt(index);
-
-    msg.command  = BUTTONPRESS;
-    msg.ui32Data = index;
-    msg.ui32Mask = mask;
-
-    Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
 }
 
 // End-Of-File

@@ -102,6 +102,7 @@ static void DrawAbout(void);
 static void DrawUV(void);
 static void DrawInfo(void);
 static void PlotUVBarGraph(tRectangle rect, float percent);
+void DrawInverseText(int x, int y, char* text, int len);
 
 //*****************************************************************************
 //
@@ -331,6 +332,50 @@ void DrawUV(void)
 
         y += height + spacing;
     }
+
+    //len = sprintf(buf, "%d:%02d:%02d %d/%d/%d",
+    //        g_sys.timeRTC.hour, g_sys.timeRTC.min, g_sys.timeRTC.sec,
+    //        g_sys.timeRTC.month, g_sys.timeRTC.date, g_sys.timeRTC.year + 2000);
+
+    len = sprintf(buf, "%d:%02d:%02d",
+            g_sys.timeRTC.hour, g_sys.timeRTC.min, g_sys.timeRTC.sec);
+    //width = GrStringWidthGet(&g_context, buf, len);
+    //GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y+1, 0);
+    GrStringDraw(&g_context, buf, -1, 0, y+1, 0);
+    //DrawInverseText(0, y, buf, len);
+
+    len = sprintf(buf, "%02d/%02d/%d",
+            g_sys.timeRTC.month, g_sys.timeRTC.date, g_sys.timeRTC.year + 2000);
+    width = GrStringWidthGet(&g_context, buf, len);
+    //GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y+1, 0);
+    GrStringDraw(&g_context, buf, -1, 62, y+1, 0);
+}
+
+
+void DrawInverseText(int x, int y, char* text, int len)
+{
+    tRectangle rect;
+
+    int width  = GrStringWidthGet(&g_context, text, len);
+    int height = GrStringHeightGet(&g_context) - 1;
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    rect.i16XMin = x;
+    rect.i16YMin = y;
+    rect.i16XMax = x + width + 1;
+    rect.i16YMax = y + height + 1;
+
+    GrRectDraw(&g_context, &rect);
+
+    GrContextForegroundSetTranslated(&g_context, 0);
+    GrContextBackgroundSetTranslated(&g_context, 1);
+
+    GrStringDraw(&g_context, text, -1, x+1, y+1, 1);
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
 }
 
 //*****************************************************************************
