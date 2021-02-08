@@ -45,4 +45,6 @@ Bool DisplayRefresh(void);
 ScreenNum DisplaySetScreen(ScreenNum screen);
 ScreenNum DisplayGetScreen(void);
 
+bool IsScreenSave(void);
+
 #endif /* __DISPLAYTASK_H */

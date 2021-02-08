@@ -171,7 +171,7 @@ Void netOpenHook(void)
      * to handle command/response requests. The parameter arg0 will
      * be the port that this task listens on.
      */
-#if 0
+
     Error_init(&eb);
     Task_Params_init(&taskParams);
 
@@ -184,9 +184,8 @@ Void netOpenHook(void)
     if (taskHandle == NULL) {
         System_printf("netOpenHook: Failed to create tcpCommandHandler Task\n");
     }
-#endif
-    System_flush();
 
+    System_flush();
 }
 
 //*****************************************************************************
@@ -207,8 +206,8 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
     Task_Params        taskParams;
     Error_Block        eb;
 
-    //Task_Handle hSelf = Task_self();
-    //fdOpenSession(hSelf);
+    Task_Handle hSelf = Task_self();
+    fdOpenSession(hSelf);
 
     server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
@@ -244,8 +243,8 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
 
     while ((clientfd = accept(server, (struct sockaddr *)&clientAddr, &addrlen)) != -1)
     {
-        System_printf("tcpStateHandler: Creating thread clientfd = %d\n", clientfd);
-        System_flush();
+        //System_printf("tcpStateHandler: Creating thread clientfd = %d\n", clientfd);
+        //System_flush();
 
         /* Init the Error_Block */
         Error_init(&eb);
@@ -279,7 +278,7 @@ shutdown:
         close(server);
     }
 
-    //fdClose(hSelf);
+    fdClose(hSelf);
 }
 
 //*****************************************************************************
@@ -295,6 +294,9 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     uint8_t*    buf;
     size_t      i;
     bool        connected = true;
+
+    Task_Handle hSelf = Task_self();
+    fdOpenSession(hSelf);
 
     PMX42_STATE_MSG stateMsg;
 
@@ -351,6 +353,8 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     System_flush();
 
     close(clientfd);
+
+    fdClose(hSelf);
 }
 
 //*****************************************************************************
@@ -371,8 +375,8 @@ Void tcpCommandHandler(UArg arg0, UArg arg1)
     Task_Params        taskParams;
     Error_Block        eb;
 
-    //Task_Handle hSelf = Task_self();
-    //fdOpenSession(hSelf);
+    Task_Handle hSelf = Task_self();
+    fdOpenSession(hSelf);
 
     server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
@@ -445,7 +449,7 @@ shutdown:
         close(server);
     }
 
-    //fdClose(hSelf);
+    fdClose(hSelf);
 }
 
 //*****************************************************************************
@@ -463,6 +467,9 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     uint16_t    status;
 
     PMX42_COMMAND_HDR msg;
+
+    Task_Handle hSelf = Task_self();
+    fdOpenSession(hSelf);
 
     System_printf("tcpCommandWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
@@ -517,6 +524,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     System_flush();
 
     close(clientfd);
+
+    fdClose(hSelf);
 }
 
 /* This function performs a blocked read for 'size' number of bytes. It will

@@ -95,6 +95,7 @@ extern SYSDATA g_sys;
 
 /* Static Module Globals */
 static ScreenNum s_uScreenNum = SCREEN_UV;
+static bool s_Screensave = false;
 
 /* Static Function Prototypes */
 static void ClearDisplay(void);
@@ -114,6 +115,36 @@ void ClearDisplay(void)
     GrContextForegroundSetTranslated(&g_context, 0);
     GrContextBackgroundSetTranslated(&g_context, 0);
     GrRectFill(&g_context, &rect);
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void DrawInverseText(int x, int y, char* text, int len)
+{
+    tRectangle rect;
+
+    int width  = GrStringWidthGet(&g_context, text, len);
+    int height = GrStringHeightGet(&g_context) - 1;
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    rect.i16XMin = x;
+    rect.i16YMin = y;
+    rect.i16XMax = x + width + 1;
+    rect.i16YMax = y + height + 1;
+
+    GrRectDraw(&g_context, &rect);
+
+    GrContextForegroundSetTranslated(&g_context, 0);
+    GrContextBackgroundSetTranslated(&g_context, 1);
+
+    GrStringDraw(&g_context, text, -1, x+1, y+1, 1);
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
 }
 
 //*****************************************************************************
@@ -341,41 +372,15 @@ void DrawUV(void)
             g_sys.timeRTC.hour, g_sys.timeRTC.min, g_sys.timeRTC.sec);
     //width = GrStringWidthGet(&g_context, buf, len);
     //GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y+1, 0);
-    GrStringDraw(&g_context, buf, -1, 0, y+1, 0);
+    GrStringDraw(&g_context, buf, -1, 62, y+1, 0);
     //DrawInverseText(0, y, buf, len);
-
+#if 0
     len = sprintf(buf, "%02d/%02d/%d",
             g_sys.timeRTC.month, g_sys.timeRTC.date, g_sys.timeRTC.year + 2000);
     width = GrStringWidthGet(&g_context, buf, len);
     //GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y+1, 0);
     GrStringDraw(&g_context, buf, -1, 62, y+1, 0);
-}
-
-
-void DrawInverseText(int x, int y, char* text, int len)
-{
-    tRectangle rect;
-
-    int width  = GrStringWidthGet(&g_context, text, len);
-    int height = GrStringHeightGet(&g_context) - 1;
-
-    GrContextForegroundSetTranslated(&g_context, 1);
-    GrContextBackgroundSetTranslated(&g_context, 0);
-
-    rect.i16XMin = x;
-    rect.i16YMin = y;
-    rect.i16XMax = x + width + 1;
-    rect.i16YMax = y + height + 1;
-
-    GrRectDraw(&g_context, &rect);
-
-    GrContextForegroundSetTranslated(&g_context, 0);
-    GrContextBackgroundSetTranslated(&g_context, 1);
-
-    GrStringDraw(&g_context, text, -1, x+1, y+1, 1);
-
-    GrContextForegroundSetTranslated(&g_context, 1);
-    GrContextBackgroundSetTranslated(&g_context, 0);
+#endif
 }
 
 //*****************************************************************************
@@ -460,6 +465,8 @@ void DrawScreen(uint32_t uScreenNum)
 //
 //*****************************************************************************
 
+#define SCREEN_SAVE_TIME    5
+
 Void DisplayTaskFxn(UArg arg0, UArg arg1)
 {
 	//static char lineBuf[65];
@@ -469,8 +476,8 @@ Void DisplayTaskFxn(UArg arg0, UArg arg1)
     //unsigned int fontHeight;
 
     //fontHeight = GrStringHeightGet(&g_context);
-    bool screensave = 0;
-    uint32_t secs = 0;
+
+    uint32_t ticks = 0;
 
     ClearDisplay();
 
@@ -483,36 +490,36 @@ Void DisplayTaskFxn(UArg arg0, UArg arg1)
     	/* Wait for a message up to 1 second */
         if (!Mailbox_pend(g_mailboxDisplay, &msg, 250))
         {
+            if (s_Screensave)
+                continue;
+
     		/* Check for display sleep timeout */
-    		if (++secs >= 60 * 30)
+    		if (++ticks >= ((SCREEN_SAVE_TIME * 4) * 60))
     		{
-    			/* power down and put the display in sleep mode */
-    			FEMA128x64Sleep();
-    			secs = 0;
-    			screensave = 1;
+    			ticks = 0;
+    			s_Screensave = true;
+                /* power down and put the display in sleep mode */
+                FEMA128x64Sleep();
     		}
-
-            if (!screensave)
+    		else
+    		{
                 DrawScreen(s_uScreenNum);
-
+    		}
     		continue;
         }
 
-
-        /* Reset the screensaver timeout */
-		secs = 0;
+        /* Reset the screen saver timeout */
+		ticks = 0;
 
         /* Check if screen saver is active and wakeup if so */
-		if (screensave)
+		if (s_Screensave)
 		{
 		    /* Reset screen save state flag to off */
-			screensave = 0;
+		    s_Screensave = false;
+
 			/* Wakeup the screen and power it up */
 			FEMA128x64Wake();
 		}
-
-		//System_printf("cmd=%d\n", msg.dispCommand);
-		//System_flush();
 
 		DrawScreen(s_uScreenNum);
     }
@@ -570,6 +577,15 @@ Bool DisplayRefresh(void)
 ScreenNum DisplayGetScreen(void)
 {
     return s_uScreenNum;
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+bool IsScreenSave(void)
+{
+    return s_Screensave;
 }
 
 // End-Of-File

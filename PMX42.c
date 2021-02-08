@@ -279,6 +279,8 @@ bool Init_Peripherals(void)
 
 bool Init_Devices(void)
 {
+    uint8_t id;
+
     /* This enables the DIVSCLK output pin on PQ4
      * and generates a 1.2 Mhz clock signal on the.
      * expansion header and pin 16 of the edge
@@ -315,16 +317,23 @@ bool Init_Devices(void)
      * Attempt to reset, initialize & detect presence of I/O cards
      */
 
+    /* Assume 16-bit ADC by default */
+    g_sys.adcID = AD7798_ID;
+
     /* Initialize ADC Channels in SLOT-1 */
 
     AD7799_Reset(g_sys.AD7799Handle1);
 
-    if ((g_sys.adcID = AD7799_Init(g_sys.AD7799Handle1)) == 0)
+    if ((id = AD7799_Init(g_sys.AD7799Handle1)) == 0)
     {
        System_printf("AD7799_Init() slot-1 failed\n");
     }
     else
     {
+        /* Check for 24-bit ADC */
+        if (id == AD7798_ID)
+            g_sys.adcID = id;
+
         /* Set gain to 1 */
         AD7799_SetGain(g_sys.AD7799Handle1, AD7799_GAIN_1);
         /* Set the reference detect */
@@ -337,7 +346,7 @@ bool Init_Devices(void)
 
     AD7799_Reset(g_sys.AD7799Handle2);
 
-    if ((g_sys.adcID = AD7799_Init(g_sys.AD7799Handle2)) == 0)
+    if ((id = AD7799_Init(g_sys.AD7799Handle2)) == 0)
     {
         System_printf("AD7799_Init() slot-2 failed\n");
     }
@@ -384,8 +393,8 @@ uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel)
             /* Read the current ADC status and check for error */
             status = AD7799_ReadStatus(handle);
 
-            if (status & AD7799_STAT_ERR)
-                data = ADC_ERROR;
+            //if (status & AD7799_STAT_ERR)
+            //    data = ADC_ERROR;
 
             break;
         }
@@ -451,7 +460,7 @@ Void SampleTaskFxn(UArg arg0, UArg arg1)
         g_sys.adcData[3] = AD7799_ReadChannel(g_sys.AD7799Handle2, 1);
 
         /* Now tell the display task to refresh */
-        DisplayRefresh();
+        //DisplayRefresh();
 
         /* Sleep a bit before next sample reads */
         Task_sleep(500);
@@ -555,6 +564,21 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
             uint32_t index = msgCmd.ui32Data;
             ScreenNum screen;
 
+            if (IsScreenSave())
+            {
+                DisplayRefresh();
+
+                /* Debounce after button was pressed */
+                Task_sleep(DEBOUNCE_TIME);
+                /* Now wait for the button to release */
+                while (!(GPIO_read(index)));
+                /* Debounce after button released */
+                Task_sleep(DEBOUNCE_TIME);
+                /* Now re-enable button press interrupt again */
+                GPIO_enableInt(index);
+                continue;
+            }
+
             switch(msgCmd.ui32Data)
             {
             case Board_BTN_SW1:
@@ -591,20 +615,14 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
                 break;
             }
 
-            if (buttonValid)
-            {
-                /* Debounce after button was pressed */
-                Task_sleep(DEBOUNCE_TIME);
-
-                /* Now wait for the button to release */
-                while (!(GPIO_read(index)));
-
-                /* Debounce after button released */
-                Task_sleep(DEBOUNCE_TIME);
-
-                /* Now re-enable button press interrupt again */
-                GPIO_enableInt(index);
-            }
+            /* Debounce after button was pressed */
+            Task_sleep(DEBOUNCE_TIME);
+            /* Now wait for the button to release */
+            while (!(GPIO_read(index)));
+            /* Debounce after button released */
+            Task_sleep(DEBOUNCE_TIME);
+            /* Now re-enable button press interrupt again */
+            GPIO_enableInt(index);
         }
     }
 }
