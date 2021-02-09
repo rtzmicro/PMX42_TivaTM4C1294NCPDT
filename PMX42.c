@@ -83,6 +83,7 @@
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "PMX42.h"
+#include "Utils.h"
 #include "AD7793.h"
 #include "DisplayTask.h"
 #include "usb_device.h"
@@ -393,8 +394,8 @@ uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel)
             /* Read the current ADC status and check for error */
             status = AD7799_ReadStatus(handle);
 
-            //if (status & AD7799_STAT_ERR)
-            //    data = ADC_ERROR;
+            if (status & AD7799_STAT_ERR)
+                data = 0;   //ADC_ERROR;
 
             break;
         }
@@ -485,6 +486,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Initialize any I/O cards in the slots */
     Init_Devices();
 
+    /* Load system configuration parameters from eprom */
+    ConfigParamsRead(&g_cfg);
+
     /* STEP-1: Read the globally unique serial number from EPROM. We are also
      * reading the 6-byte MAC address from the AT24MAC serial EPROM.
      */
@@ -560,8 +564,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
         if (msgCmd.command == BUTTONPRESS)
         {
-            bool buttonValid = true;
             uint32_t index = msgCmd.ui32Data;
+
             ScreenNum screen;
 
             if (IsScreenSave())
@@ -611,7 +615,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
                 break;
 
             default:
-                buttonValid = false;
                 break;
             }
 

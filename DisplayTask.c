@@ -80,18 +80,15 @@
 #include "AD7793.h"
 #include "DisplayTask.h"
 
-#define LAST_SCREEN     1
 #define UV_CHANNELS     4
 
 /* Global context for drawing */
 extern tContext g_context;
-
 extern tFont *g_psFontWDseg7bold24pt;
-
 /* Handles created dynamically */
 extern Mailbox_Handle g_mailboxDisplay;
-
 extern SYSDATA g_sys;
+extern SYSCONFIG g_cfg;
 
 /* Static Module Globals */
 static ScreenNum s_uScreenNum = SCREEN_UV;
@@ -465,8 +462,6 @@ void DrawScreen(uint32_t uScreenNum)
 //
 //*****************************************************************************
 
-#define SCREEN_SAVE_TIME    5
-
 Void DisplayTaskFxn(UArg arg0, UArg arg1)
 {
 	//static char lineBuf[65];
@@ -494,7 +489,7 @@ Void DisplayTaskFxn(UArg arg0, UArg arg1)
                 continue;
 
     		/* Check for display sleep timeout */
-    		if (++ticks >= ((SCREEN_SAVE_TIME * 4) * 60))
+    		if (++ticks >= ((g_cfg.screensave_time * 4) * 60))
     		{
     			ticks = 0;
     			s_Screensave = true;

@@ -313,7 +313,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     while (connected)
     {
         /* Wait for a position change event from the tape roller position task */
-        UInt events = Event_pend(g_eventState, Event_Id_NONE, EVENT_MASK, 2500);
+        UInt events = Event_pend(g_eventState, Event_Id_NONE, EVENT_MASK, 1000);
 
         memset(&stateMsg, 0, sizeof(PMX42_STATE_MSG));
 

@@ -21,8 +21,11 @@ typedef enum ScreenNum {
 
 } ScreenNum;
 
-#define SCREEN_FIRST    SCREEN_ABOUT
-#define SCREEN_LAST     SCREEN_UV
+#define SCREEN_FIRST        SCREEN_ABOUT
+#define SCREEN_LAST         SCREEN_UV
+
+/* Screen saver triggers in 30 minutes by default */
+#define SCREEN_SAVER_TIME   30
 
 /*** SYSTEM CONFIG PARAMETERS STORED IN EPROM ******************************/
 

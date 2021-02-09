@@ -40,7 +40,7 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        4           /* firmware revision */
+#define FIRMWARE_REV        5           /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
@@ -102,11 +102,12 @@ typedef struct _SYSDATA
 
 typedef struct _SYSPARMS
 {
-    uint32_t magic;
-    uint32_t version;
-    uint32_t build;
+    uint32_t    magic;
+    uint32_t    version;
+    uint32_t    build;
     /*** GLOBAL PARAMETERS ***/
-    long debug;                     	/* debug level */
+    long        debug;                     	/* debug level */
+    uint32_t    screensave_time;
 } SYSCONFIG;
 
 //*****************************************************************************

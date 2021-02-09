@@ -90,6 +90,7 @@
 #include "PMX42.h"
 #include "Board.h"
 #include "Utils.h"
+#include "DisplayTask.h"
 
 //*****************************************************************************
 // This enables the DIVSCLK output pin on PQ4 and generates a clock signal
@@ -185,10 +186,10 @@ int ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
 void ConfigInitDefaults(SYSCONFIG* p)
 {
     /** Default servo parameters **/
-    p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
-    p->build        = FIRMWARE_BUILD;
-    p->debug        = 0;                    /* debug mode 0=off             */
-
+    p->version          = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
+    p->build            = FIRMWARE_BUILD;
+    p->debug            = 0;                    /* debug mode 0=off             */
+    p->screensave_time  = SCREEN_SAVER_TIME;
 }
 
 //*****************************************************************************
