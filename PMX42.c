@@ -327,12 +327,16 @@ bool Init_Devices(void)
 
     if ((id = AD7799_Init(g_sys.AD7799Handle1)) == 0)
     {
-       System_printf("AD7799_Init() slot-1 failed\n");
+        AD7799_delete(g_sys.AD7799Handle1);
+
+        g_sys.AD7799Handle1 = 0;
+
+        System_printf("AD7799_Init() slot-1 failed\n");
     }
     else
     {
         /* Check for 24-bit ADC */
-        if (id == AD7798_ID)
+        if (id == AD7799_ID)
             g_sys.adcID = id;
 
         /* Set gain to 1 */
@@ -349,6 +353,10 @@ bool Init_Devices(void)
 
     if ((id = AD7799_Init(g_sys.AD7799Handle2)) == 0)
     {
+        AD7799_delete(g_sys.AD7799Handle2);
+
+        g_sys.AD7799Handle2 = 0;
+
         System_printf("AD7799_Init() slot-2 failed\n");
     }
     else
@@ -376,6 +384,9 @@ uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel)
     uint32_t i;
     uint32_t data = ADC_ERROR;
     uint8_t status = 0;
+
+    if (!handle)
+        return ADC_ERROR;
 
     /* Select ADC Channel-1 */
     AD7799_SetChannel(handle, channel);
@@ -509,7 +520,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     /* Zero out DAC level array */
     for (i=0; i < MAX_CHANNELS; i++)
-        g_sys.adcData[i] = 0;
+        g_sys.adcData[i] = 0;   //ADC_ERROR;
 
     g_sys.adcChannels = MAX_CHANNELS;
 
