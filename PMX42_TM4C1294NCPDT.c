@@ -627,26 +627,13 @@ const SDSPITiva_HWAttrs sdspiTivaHWattrs[PMX42_SDSPICOUNT] = {
    		/* SD Card Socket (J1) */
         .baseAddr = SSI1_BASE,
 
-        .portSCK  = GPIO_PORTB_BASE,
+        .portSCK  = GPIO_PORTB_BASE,    /* PB5 */
         .pinSCK   = GPIO_PIN_5,
-        .portMISO = GPIO_PORTE_BASE,
+        .portMISO = GPIO_PORTE_BASE,    /* PE5 */
         .pinMISO  = GPIO_PIN_5,
-        .portMOSI = GPIO_PORTE_BASE,
+        .portMOSI = GPIO_PORTE_BASE,    /* PE4 */
         .pinMOSI  = GPIO_PIN_4,
-        .portCS   = GPIO_PORTK_BASE,
-        .pinCS    = GPIO_PIN_7,
-    },
-    {
-   		/* OnBoard Flash (U206) */
-        .baseAddr = SSI1_BASE,
-
-        .portSCK  = GPIO_PORTQ_BASE,
-        .pinSCK   = GPIO_PIN_0,
-        .portMISO = GPIO_PORTE_BASE,
-        .pinMISO  = GPIO_PIN_5,
-        .portMOSI = GPIO_PORTE_BASE,
-        .pinMOSI  = GPIO_PIN_4,
-        .portCS   = GPIO_PORTK_BASE,
+        .portCS   = GPIO_PORTB_BASE,    /* PB4 */
         .pinCS    = GPIO_PIN_4,
     }
 };
@@ -656,11 +643,6 @@ const SDSPI_Config SDSPI_config[] = {
         .fxnTablePtr = &SDSPITiva_fxnTable,
         .object      = &sdspiTivaObjects[0],
         .hwAttrs     = &sdspiTivaHWattrs[0]
-    },
-    {
-        .fxnTablePtr = &SDSPITiva_fxnTable,
-        .object      = &sdspiTivaObjects[1],
-        .hwAttrs     = &sdspiTivaHWattrs[1]
     },
     {NULL, NULL, NULL}
 };

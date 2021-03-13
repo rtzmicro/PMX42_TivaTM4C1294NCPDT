@@ -150,7 +150,6 @@ typedef enum PMX42_PWMName {
  */
 typedef enum PMX42_SDSPIName {
     PMX42_SDSPI0 = 0,		/* SD Card Socket */
-    PMX42_SDSPI1,			/* U206 OnBoard Flash */
 
     PMX42_SDSPICOUNT
 } PMX42_SDSPIName;
