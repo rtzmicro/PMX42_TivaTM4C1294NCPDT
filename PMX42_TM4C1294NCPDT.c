@@ -346,9 +346,9 @@ GPIO_PinConfig gpioPinConfigs[] = {
     GPIOTiva_PL_5 | GPIO_CFG_IN_PU,
 
     /* Output pins */
-    /* PMX42_STAT_LED1 */
+    /* PMX42_LED_ACT */
     GPIOTiva_PP_2 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
-    /* PMX42_STAT_LED2 */
+    /* PMX42_LED_ALM */
     GPIOTiva_PP_3 | GPIO_CFG_OUT_STD | GPIO_CFG_OUT_LOW,
 
     /* PMX42_PD2_SLOT1_SS */

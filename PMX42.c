@@ -139,8 +139,8 @@ int main(void)
     GrContextInit(&g_context, &g_FEMA128x64);
 
     /* Enable the LED's during startup up */
-    GPIO_write(Board_STAT_LED1, Board_LED_ON);
-    GPIO_write(Board_STAT_LED2, Board_LED_OFF);
+    GPIO_write(Board_LED_ACT, Board_LED_ON);
+    GPIO_write(Board_LED_ALM, Board_LED_OFF);
 
     /* Create command task mailbox */
     Error_init(&eb);
@@ -454,7 +454,7 @@ Void SampleTaskFxn(UArg arg0, UArg arg1)
     while(1)
     {
         /* No message, blink the LED */
-        GPIO_toggle(Board_STAT_LED1);
+        GPIO_toggle(Board_LED_ACT);
 
         /* Read the current date/time stamp from the RTC */
         MCP79410_GetTime(g_sys.handleRTC, &g_sys.timeRTC);

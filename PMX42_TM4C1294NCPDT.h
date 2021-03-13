@@ -97,8 +97,8 @@ typedef enum PMX42_GPIOName {
     PMX42_PL4_SLOT3_IRQ,
     PMX42_PL5_SLOT4_IRQ,
     /* LED outputs */
-    PMX42_STAT_LED1,
-    PMX42_STAT_LED2,
+    PMX42_LED_ACT,
+    PMX42_LED_ALM,
     /* SLOT-1 */
 	PMX42_PD2_SLOT1_SS,
 	PMX42_PM4_T4CCP0,

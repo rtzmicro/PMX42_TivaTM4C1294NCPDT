@@ -55,8 +55,8 @@ extern "C" {
 /* On board switches and LED's */
 #define Board_LED_ON                PMX42_LED_ON
 #define Board_LED_OFF               PMX42_LED_OFF
-#define Board_STAT_LED1             PMX42_STAT_LED1
-#define Board_STAT_LED2             PMX42_STAT_LED2
+#define Board_LED_ACT               PMX42_LED_ACT
+#define Board_LED_ALM               PMX42_LED_ALM
 #define Board_BTN_SW1               PMX42_BTN_SW1
 #define Board_BTN_SW2               PMX42_BTN_SW2
 #define Board_BTN_SW3               PMX42_BTN_SW3
