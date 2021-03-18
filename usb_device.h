@@ -25,6 +25,16 @@
 #ifndef _USB_DEVICE_H_
 #define _USB_DEVICE_H_
 
+//*****************************************************************************
+//
+// Our PID sub-license for PMX42 allocated to us by TI
+//
+// VID: 0x1CBE PID: 0x02e9
+//
+//*****************************************************************************
+
+#define USB_PID_PMX42   0x02e9
+
 void USB_init(void);
 
 #endif

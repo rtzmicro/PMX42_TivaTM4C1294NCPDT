@@ -30,6 +30,13 @@
 #include "usblib/device/usbdbulk.h"
 #include "usb_bulk_structs.h"
 
+#include "usb_device.h"
+
+//*****************************************************************************
+// Our sub-license for XMOD allocated to us by TI
+// VID: 0x1CBE PID: 0x02e9
+//*****************************************************************************
+
 //*****************************************************************************
 //
 // The languages supported by this device.
@@ -177,7 +184,7 @@ const uint8_t *const g_ppui8StringDescriptors[] =
 tUSBDBulkDevice g_sBulkDevice =
 {
     USB_VID_TI_1CBE,
-    USB_PID_BULK,
+    USB_PID_PMX42,
     500,
     USB_CONF_ATTR_BUS_PWR,
     USBBufferEventCallback,
