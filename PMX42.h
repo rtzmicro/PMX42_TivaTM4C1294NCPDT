@@ -18,8 +18,6 @@
 /* Helper Macros */
 #define CELCIUS_TO_FAHRENHEIT(c)    ( (float)c * 1.8f + 32.0f )
 
-#define MAX_CHANNELS        4           /* number of DAC channels */
-
 //*****************************************************************************
 // CONSTANTS AND CONFIGURATION
 //*****************************************************************************
@@ -51,6 +49,10 @@
 #define MAGIC               0xCEB0FACE  /* magic number for EEPROM data */
 #define MAKEREV(v, r)       ((v << 16) | (r & 0xFFFF))
 
+//*****************************************************************************
+// CPU Internal ADC Constants
+//*****************************************************************************
+
 #define ADC_VREF            4.096f
 #define ADC_ERROR           0xFFFFFFFF
 
@@ -58,20 +60,26 @@
 //#define ADC_VSTEP           (ADC_VREF / (float)ADC_FULLSCALE)
 
 //*****************************************************************************
-// 128-BIT GUID Structure
+// 53105 ADC Card Constants
 //*****************************************************************************
 
-typedef struct _GUID128 {
-    union {
-        uint8_t     addr[16];
-    } b8;
-    union {
-        uint16_t    addr[8];
-    } w16;
-    union {
-        uint32_t    addr[4];
-    } w32;
-} GUID128;
+/* This defines the number of ADC cards loaded in the rack,
+ * the number of converters per card, and the number of channels
+ * channels in the system.
+ */
+#define ADC_NUM_CARDS               2
+#define ADC_CONVERTERS_PER_CARD     1
+#define ADC_CHANNELS_PER_CARD       (2 * ADC_CONVERTERS_PER_CARD)
+#define ADC_NUM_CONVERTERS          (ADC_NUM_CARDS * ADC_CONVERTERS_PER_CARD)
+#define ADC_NUM_CHANNELS            (ADC_NUM_CARDS * ADC_CHANNELS_PER_CARD)
+
+/* Each ADC card has one converter with a chip select
+ * and provides a total of two ADC channels per card.
+ */
+typedef struct _ADC_CONVERTER {
+    AD7799_Handle   handle;
+    uint32_t        chipsel;
+} ADC_CONVERTER;
 
 //*****************************************************************************
 //GLOBAL RUN-TIME DATA
@@ -87,12 +95,10 @@ typedef struct _SYSDATA
     I2C_Handle      i2c3;
     SPI_Handle      spi2;                   /* SPI handle for slots 1 & 2 */
     SPI_Handle      spi3;                   /* SPI handle for slots 3 & 4 */
-    AD7799_Handle   AD7799Handle1;
-    AD7799_Handle   AD7799Handle2;
     MCP79410_Handle handleRTC;
     uint8_t         adcID;                  /* chip ID, 16 or 24 bit type */
     uint32_t        adcChannels;            /* num of ADC channels active */
-    uint32_t        adcData[MAX_CHANNELS];  /* the ADC sample value read  */
+    uint32_t        adcData[ADC_NUM_CHANNELS];
     RTCC_Struct     timeRTC;
 } SYSDATA;
 
@@ -123,6 +129,17 @@ typedef struct CommandMessage{
     uint32_t 		ui32Data;
     uint32_t        ui32Mask;
 } CommandMessage;
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+extern SYSDATA     g_sys;
+extern SYSCONFIG   g_cfg;
+
+//*****************************************************************************
+//
+//*****************************************************************************
 
 int main(void);
 Void CommandTaskFxn(UArg arg0, UArg arg1);

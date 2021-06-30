@@ -102,11 +102,26 @@ Mailbox_Handle mailboxCommand = NULL;
 SYSDATA     g_sys;
 SYSCONFIG   g_cfg;
 
+/* This table contains the handle to each ADC channel allocated in
+ * the system along with the chip select for SPI3 to access the device.
+ */
+static ADC_CONVERTER g_adcConverter[ADC_NUM_CONVERTERS] = {
+    {
+        .handle  = NULL,
+        .chipsel = Board_SLOT1_SS,      /* CARD #1, channels 1 & 2 */
+    },
+    {
+        .handle  = NULL,
+        .chipsel = Board_SLOT2_SS,      /* CARD #2, channels 3 & 4 */
+    }
+};
+
 /* Static Function Prototypes */
 static bool Init_Peripherals(void);
 static bool Init_Devices(void);
 static void gpioButtonHwi(unsigned int index);
-static uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel);
+static uint32_t ADC_ReadChannel(AD7799_Handle handle, uint32_t channel);
+static AD7799_Handle ADC_AllocConverter(SPI_Handle spiHandle, uint32_t gpioCSIndex);
 
 //*****************************************************************************
 // Main Entry Point
@@ -280,7 +295,7 @@ bool Init_Peripherals(void)
 
 bool Init_Devices(void)
 {
-    uint8_t id;
+    size_t i;
 
     /* This enables the DIVSCLK output pin on PQ4
      * and generates a 1.2 Mhz clock signal on the.
@@ -300,74 +315,62 @@ bool Init_Devices(void)
         System_abort("MCP79410_create failed\n");
     }
 
-    /*
-     * Create and initialize the AD7799 objects.
-     */
-
-    if ((g_sys.AD7799Handle1 = AD7799_create(g_sys.spi2, Board_SLOT1_SS, NULL)) == NULL)
+    /* Initialize the RTC clock if it's not running */
+    if (!MCP79410_IsRunning(g_sys.handleRTC))
     {
-        System_abort("AD7799_create failed\n");
+        RTCC_Struct ts;
+
+        ts.hour    = (uint8_t)0;
+        ts.min     = (uint8_t)0;
+        ts.sec     = (uint8_t)0;
+        ts.month   = (uint8_t)0;
+        ts.date    = (uint8_t)1;
+        ts.weekday = (uint8_t)0;
+        ts.year    = (uint8_t)(2021 - 2000);
+
+        MCP79410_Initialize(g_sys.handleRTC, &ts, H24);
     }
 
-    if ((g_sys.AD7799Handle2 = AD7799_create(g_sys.spi2, Board_SLOT2_SS, NULL)) == NULL)
-    {
-        System_abort("AD7799_create failed\n");
-    }
-
-    /*
-     * Attempt to reset, initialize & detect presence of I/O cards
+    /* Create and Initialize ADC Channels. Each card contains two ADC
+     * converters with separate chip selects for each. The chip selects
+     * must be predefined in the channel table. All of the ADC converters
+     * are mapped on SPI-3 with chip selects for each.
      */
+
+    g_sys.adcChannels = ADC_NUM_CHANNELS;
+
+    /* Zero out DAC level array */
+    for (i=0; i < ADC_NUM_CHANNELS; i++)
+        g_sys.adcData[i] = 0;   //ADC_ERROR;
 
     /* Assume 16-bit ADC by default */
     g_sys.adcID = AD7798_ID;
 
-    /* Initialize ADC Channels in SLOT-1 */
-
-    AD7799_Reset(g_sys.AD7799Handle1);
-
-    if ((id = AD7799_Init(g_sys.AD7799Handle1)) == 0)
+    for (i=0; i < ADC_NUM_CONVERTERS; i++)
     {
-        AD7799_delete(g_sys.AD7799Handle1);
-
-        g_sys.AD7799Handle1 = 0;
-
-        System_printf("AD7799_Init() slot-1 failed\n");
-    }
-    else
-    {
-        /* Check for 24-bit ADC */
-        if (id == AD7799_ID)
-            g_sys.adcID = id;
-
-        /* Set gain to 1 */
-        AD7799_SetGain(g_sys.AD7799Handle1, AD7799_GAIN_1);
-        /* Set the reference detect */
-        AD7799_SetRefDetect(g_sys.AD7799Handle1, AD7799_REFDET_ENA);
-        /* Set for unipolar data reading */
-        AD7799_SetUnipolar(g_sys.AD7799Handle1, AD7799_UNIPOLAR_ENA);
+        g_adcConverter[i].handle = ADC_AllocConverter(g_sys.spi2, g_adcConverter[i].chipsel);
     }
 
-    /* Initialize ADC Channels in SLOT-2 */
+    /* Load system configuration parameters from eprom */
+    ConfigParamsRead(&g_cfg);
 
-    AD7799_Reset(g_sys.AD7799Handle2);
-
-    if ((id = AD7799_Init(g_sys.AD7799Handle2)) == 0)
+    /* STEP-1: Read the globally unique serial number from EPROM. We are also
+     * reading the 6-byte MAC address from the AT24MAC serial EPROM.
+     */
+    if (!ReadGUIDS(g_sys.i2c3, g_sys.ui8SerialNumber, g_sys.ui8MAC))
     {
-        AD7799_delete(g_sys.AD7799Handle2);
-
-        g_sys.AD7799Handle2 = 0;
-
-        System_printf("AD7799_Init() slot-2 failed\n");
+        System_printf("Read Serial Number Failed!\n");
+        System_flush();
     }
-    else
-    {
-        /* Set gain to 1 */
-        AD7799_SetGain(g_sys.AD7799Handle2, AD7799_GAIN_1);
-        /* Set the reference detect */
-        AD7799_SetRefDetect(g_sys.AD7799Handle2, AD7799_REFDET_ENA);
-        /* Set for unipolar data reading */
-        AD7799_SetUnipolar(g_sys.AD7799Handle2, AD7799_UNIPOLAR_ENA);
-    }
+
+    /* STEP-2 - Don't initialize EMAC layer until after reading MAC address above! */
+    Board_initEMAC(g_sys.ui8MAC);
+
+    /* STEP-3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
+    Semaphore_post(g_semaNDKStartup);
+
+    /* Initialize the USB module for device mode */
+    USB_init();
 
     System_flush();
 
@@ -375,11 +378,45 @@ bool Init_Devices(void)
 }
 
 //*****************************************************************************
+// This allocates an ADC context for communication and initializes the ADC
+// converter for use. This is called for each ADC in the system (two per card).
+//*****************************************************************************
+
+AD7799_Handle ADC_AllocConverter(SPI_Handle spiHandle, uint32_t gpioCSIndex)
+{
+    AD7799_Handle handle;
+
+    if ((handle = AD7799_create(spiHandle, gpioCSIndex, NULL)) != NULL)
+    {
+        AD7799_Reset(handle);
+
+        if ((g_sys.adcID = AD7799_Init(handle)) == 0)
+        {
+            System_printf("AD7799_Init(2) failed\n");
+            //SetLastError(XSYSERR_ADC_INIT);
+        }
+        else
+        {
+            /* Set gain to 1 */
+            AD7799_SetGain(handle, AD7799_GAIN_1);
+
+            /* Set the reference detect */
+            AD7799_SetRefDetect(handle, AD7799_REFDET_ENA);
+
+            /* Set for unipolar data reading */
+            AD7799_SetUnipolar(handle, AD7799_UNIPOLAR_ENA);
+        }
+    }
+
+    return handle;
+}
+
+//*****************************************************************************
 //
 //
 //*****************************************************************************
 
-uint32_t AD7799_ReadChannel(AD7799_Handle handle, uint32_t channel)
+uint32_t ADC_ReadChannel(AD7799_Handle handle, uint32_t channel)
 {
     uint32_t i;
     uint32_t data = ADC_ERROR;
@@ -451,6 +488,8 @@ void gpioButtonHwi(unsigned int index)
 
 Void SampleTaskFxn(UArg arg0, UArg arg1)
 {
+    size_t i;
+
     while(1)
     {
         /* No message, blink the LED */
@@ -459,17 +498,18 @@ Void SampleTaskFxn(UArg arg0, UArg arg1)
         /* Read the current date/time stamp from the RTC */
         MCP79410_GetTime(g_sys.handleRTC, &g_sys.timeRTC);
 
-        /* Read ADC level for CHAN-1 in SLOT-1 */
-        g_sys.adcData[0] = AD7799_ReadChannel(g_sys.AD7799Handle1, 0);
+        /* If the ADC's were found and active, then poll each ADC for data */
+        if (g_sys.adcID)
+        {
+            size_t channel = 0;
 
-        /* Read ADC level for CHAN-2 in SLOT-2 */
-        g_sys.adcData[1] = AD7799_ReadChannel(g_sys.AD7799Handle1, 1);
-
-        /* Read ADC level for CHAN-3 in SLOT-3 */
-        g_sys.adcData[2] = AD7799_ReadChannel(g_sys.AD7799Handle2, 0);
-
-        /* Read ADC level for CHAN-4 in SLOT-4 */
-        g_sys.adcData[3] = AD7799_ReadChannel(g_sys.AD7799Handle2, 1);
+            for (i=0; i < ADC_NUM_CONVERTERS; i++)
+            {
+                /* Read two channels of data from a each converter on card */
+                g_sys.adcData[channel++] = ADC_ReadChannel(g_adcConverter[i].handle, 0);
+                g_sys.adcData[channel++] = ADC_ReadChannel(g_adcConverter[i].handle, 1);
+            }
+        }
 
         /* Now tell the display task to refresh */
         //DisplayRefresh();
@@ -486,7 +526,6 @@ Void SampleTaskFxn(UArg arg0, UArg arg1)
 
 Void CommandTaskFxn(UArg arg0, UArg arg1)
 {
-    uint32_t i;
     Error_Block eb;
 	Task_Params taskParams;
     CommandMessage msgCmd;
@@ -497,56 +536,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Initialize any I/O cards in the slots */
     Init_Devices();
 
-    /* Load system configuration parameters from eprom */
-    ConfigParamsRead(&g_cfg);
-
-    /* STEP-1: Read the globally unique serial number from EPROM. We are also
-     * reading the 6-byte MAC address from the AT24MAC serial EPROM.
-     */
-    if (!ReadGUIDS(g_sys.i2c3, g_sys.ui8SerialNumber, g_sys.ui8MAC))
-    {
-        System_printf("Read Serial Number Failed!\n");
-        System_flush();
-    }
-
-    /* STEP-2 - Don't initialize EMAC layer until after reading MAC address above! */
-    Board_initEMAC(g_sys.ui8MAC);
-
-    /* STEP-3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
-    Semaphore_post(g_semaNDKStartup);
-
-    /* Initialize the USB module for device mode */
-    USB_init();
-
-    /* Zero out DAC level array */
-    for (i=0; i < MAX_CHANNELS; i++)
-        g_sys.adcData[i] = 0;   //ADC_ERROR;
-
-    g_sys.adcChannels = MAX_CHANNELS;
-
-    /* Initialize the RTC clock if it's not running */
-
-    if (!MCP79410_IsRunning(g_sys.handleRTC))
-    {
-        RTCC_Struct ts;
-
-        ts.hour    = (uint8_t)18;
-        ts.min     = (uint8_t)15;
-        ts.sec     = (uint8_t)30;
-        ts.month   = (uint8_t)2;
-        ts.date    = (uint8_t)4;
-        ts.weekday = (uint8_t)0;
-        ts.year    = (uint8_t)(2021 - 2000);
-
-        MCP79410_Initialize(g_sys.handleRTC, &ts, H24);
-    }
-
-    /*
-     * Create the display task
-     */
-
     /* Startup the OLED Display Task */
-
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
@@ -554,7 +544,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
 
     /* Startup the ADC sample read task */
-
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
