@@ -30,11 +30,6 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- *    ======== tcpEcho.c ========
- *    Contains BSD sockets code.
- */
-
 /* XDCtools Header files */
 #include <xdc/std.h>
 #include <xdc/cfg/global.h>
@@ -84,12 +79,19 @@
 #include "Board.h"
 #include "PMX42.h"
 #include "Utils.h"
-#include "AD7793.h"
 #include "DisplayTask.h"
 #include "usb_device.h"
 
 /* Debounce time for buttons */
 #define DEBOUNCE_TIME       50
+
+//*****************************************************************************
+// Global System and Config Data
+//*****************************************************************************
+
+/* Global Data Items */
+SYSDATA     g_sys;
+SYSCONFIG   g_cfg;
 
 /* Global context for drawing */
 tContext g_context;
@@ -98,30 +100,63 @@ tContext g_context;
 Mailbox_Handle g_mailboxDisplay = NULL;
 Mailbox_Handle mailboxCommand = NULL;
 
-/* Global Data Items */
-SYSDATA     g_sys;
-SYSCONFIG   g_cfg;
+//*****************************************************************************
+// Global ADC Card Data
+//*****************************************************************************
 
 /* This table contains the handle to each ADC channel allocated in
- * the system along with the chip select for SPI3 to access the device.
+ * the system along with the chip select for SPI2 to access the device.
  */
-static ADC_CONVERTER g_adcConverter[ADC_NUM_CONVERTERS] = {
+static ADC_CONVERTER g_adcConverter[ADC_NUM_CARDS] = {
     {
         .handle  = NULL,
-        .chipsel = Board_SLOT1_SS,      /* CARD #1, channels 1 & 2 */
+        .chipsel = Board_SLOT1_SS,              /* Slot #1, channels 1 & 2 */
     },
+#if 0
     {
         .handle  = NULL,
-        .chipsel = Board_SLOT2_SS,      /* CARD #2, channels 3 & 4 */
+        .chipsel = Board_SLOT2_SS,              /* Slot #2, channels 3 & 4 */
     }
+#endif
 };
 
-/* Static Function Prototypes */
+//*****************************************************************************
+// Global RTD Card Data
+//*****************************************************************************
+
+/* This table contains the handle to each RTD channel allocated in
+ * the system along with the chip select for SPI2 to access the device.
+ */
+static RTD_CHANNEL g_rtdConverter[RTD_NUM_CHANNELS] = {
+    {
+        .handle   = NULL,
+        .chipsel  = Board_SLOT2_MAX31865_CS1,    /* Slot #2 channel 1 */
+    },
+    {
+        .handle   = NULL,
+        .chipsel  = Board_SLOT2_MAX31865_CS2,    /* Slot #2 channel 2 */
+    },
+};
+
+//*****************************************************************************
+// Static Function Prototypes
+//*****************************************************************************
+
 static bool Init_Peripherals(void);
 static bool Init_Devices(void);
-static void gpioButtonHwi(unsigned int index);
-static uint32_t ADC_ReadChannel(AD7799_Handle handle, uint32_t channel);
+
+static bool RTC_Initialize(void);
+
+static bool ADC_Initialize(void);
 static AD7799_Handle ADC_AllocConverter(SPI_Handle spiHandle, uint32_t gpioCSIndex);
+static uint32_t ADC_ReadChannel(uint32_t channel);
+static float ADC_to_UVPower(uint32_t adc);;
+
+static bool RTD_Initialize(void);
+static MAX31865_Handle RTD_AllocConverter(SPI_Handle spiHandle, uint32_t gpioCSIndex);
+static uint8_t RTD_ReadChannel(uint32_t channel, uint32_t* adc, float* tempC);
+
+static void gpioButtonHwi(unsigned int index);
 
 //*****************************************************************************
 // Main Entry Point
@@ -184,20 +219,20 @@ int main(void)
     System_flush();
 
     /* Setup the callback Hwi handler for each button */
-    GPIO_setCallback(Board_BTN_SW1, gpioButtonHwi);
-    GPIO_setCallback(Board_BTN_SW2, gpioButtonHwi);
-    GPIO_setCallback(Board_BTN_SW3, gpioButtonHwi);
-    GPIO_setCallback(Board_BTN_SW4, gpioButtonHwi);
-    GPIO_setCallback(Board_BTN_SW5, gpioButtonHwi);
-    GPIO_setCallback(Board_BTN_SW6, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_UP , gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_DN, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_NXT, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_PRV, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_OK, gpioButtonHwi);
+    GPIO_setCallback(Board_BTN_ESC, gpioButtonHwi);
 
     /* Enable keypad button interrupts */
-    GPIO_enableInt(Board_BTN_SW1);
-    GPIO_enableInt(Board_BTN_SW2);
-    GPIO_enableInt(Board_BTN_SW3);
-    GPIO_enableInt(Board_BTN_SW4);
-    GPIO_enableInt(Board_BTN_SW5);
-    GPIO_enableInt(Board_BTN_SW6);
+    GPIO_enableInt(Board_BTN_UP );
+    GPIO_enableInt(Board_BTN_DN);
+    GPIO_enableInt(Board_BTN_NXT);
+    GPIO_enableInt(Board_BTN_PRV);
+    GPIO_enableInt(Board_BTN_OK);
+    GPIO_enableInt(Board_BTN_ESC);
 
     /* Start BIOS */
     BIOS_start();
@@ -295,8 +330,6 @@ bool Init_Peripherals(void)
 
 bool Init_Devices(void)
 {
-    size_t i;
-
     /* This enables the DIVSCLK output pin on PQ4
      * and generates a 1.2 Mhz clock signal on the.
      * expansion header and pin 16 of the edge
@@ -306,50 +339,14 @@ bool Init_Devices(void)
     EnableClockDivOutput(100);
 #endif
 
-    /*
-     * Create and initialize the MCP79410 RTC object.
-     */
+    /* Create and initialize the MCP79410 RTC object */
+    RTC_Initialize();
 
-    if ((g_sys.handleRTC = MCP79410_create(g_sys.i2c3, NULL)) == NULL)
-    {
-        System_abort("MCP79410_create failed\n");
-    }
+    /* Create and initialize ADC Channels */
+    ADC_Initialize();
 
-    /* Initialize the RTC clock if it's not running */
-    if (!MCP79410_IsRunning(g_sys.handleRTC))
-    {
-        RTCC_Struct ts;
-
-        ts.hour    = (uint8_t)0;
-        ts.min     = (uint8_t)0;
-        ts.sec     = (uint8_t)0;
-        ts.month   = (uint8_t)0;
-        ts.date    = (uint8_t)1;
-        ts.weekday = (uint8_t)0;
-        ts.year    = (uint8_t)(2021 - 2000);
-
-        MCP79410_Initialize(g_sys.handleRTC, &ts, H24);
-    }
-
-    /* Create and Initialize ADC Channels. Each card contains two ADC
-     * converters with separate chip selects for each. The chip selects
-     * must be predefined in the channel table. All of the ADC converters
-     * are mapped on SPI-3 with chip selects for each.
-     */
-
-    g_sys.adcChannels = ADC_NUM_CHANNELS;
-
-    /* Zero out DAC level array */
-    for (i=0; i < ADC_NUM_CHANNELS; i++)
-        g_sys.adcData[i] = 0;   //ADC_ERROR;
-
-    /* Assume 16-bit ADC by default */
-    g_sys.adcID = AD7798_ID;
-
-    for (i=0; i < ADC_NUM_CONVERTERS; i++)
-    {
-        g_adcConverter[i].handle = ADC_AllocConverter(g_sys.spi2, g_adcConverter[i].chipsel);
-    }
+    /* Create and initialize RTD Channels */
+    RTD_Initialize();
 
     /* Load system configuration parameters from eprom */
     ConfigParamsRead(&g_cfg);
@@ -378,6 +375,85 @@ bool Init_Devices(void)
 }
 
 //*****************************************************************************
+// Create MCP79410 object and initialize the RTC time and date.
+//*****************************************************************************
+
+bool RTC_Initialize(void)
+{
+    bool success = FALSE;
+
+    if ((g_sys.handleRTC = MCP79410_create(g_sys.i2c3, NULL)) == NULL)
+    {
+        System_abort("MCP79410_create failed\n");
+    }
+
+    /* Initialize the RTC clock if it's not running */
+    if (!MCP79410_IsRunning(g_sys.handleRTC))
+    {
+        RTCC_Struct ts;
+
+        ts.hour    = (uint8_t)0;
+        ts.min     = (uint8_t)0;
+        ts.sec     = (uint8_t)0;
+        ts.month   = (uint8_t)0;
+        ts.date    = (uint8_t)1;
+        ts.weekday = (uint8_t)0;
+        ts.year    = (uint8_t)(2021 - 2000);
+
+        MCP79410_Initialize(g_sys.handleRTC, &ts, H24);
+
+        success = TRUE;
+    }
+
+    return success;
+}
+
+//*****************************************************************************
+// Create and Initialize ADC Channels. Each card contains one ADC with
+// two channels.
+//*****************************************************************************
+
+bool ADC_Initialize(void)
+{
+    bool success = FALSE;
+    size_t i;
+
+    /* Zero out DAC level array */
+    for (i=0; i < ADC_MAX_CHANNELS; i++)
+    {
+        g_sys.adcData[i] = ADC_ERROR;
+        g_sys.adcUV[i] = 0.0f;
+    }
+
+    /* Assume 16-bit ADC by default */
+    g_sys.adcID = AD7798_ID;
+
+    /* Clear ADC channels found count */
+    g_sys.adcNumChannels = 0;
+
+    /* Attempt to allocate and initialize each ADC converter */
+    for (i=0; i < ADC_NUM_CARDS; i++)
+    {
+        /* Attempt to allocate and initialize the ADC */
+        g_adcConverter[i].handle = ADC_AllocConverter(g_sys.spi2, g_adcConverter[i].chipsel);
+
+        /* ADC found, increment the channel count */
+        if (g_adcConverter[i].handle == NULL)
+        {
+            System_printf("ADC_Initialize() failed\n");
+            //SetLastError(XSYSERR_ADC_INIT);
+        }
+        else
+        {
+            g_sys.adcNumChannels += ADC_CHANNELS_PER_CARD;
+            success = TRUE;
+        }
+    }
+
+    return success;
+}
+
+//*****************************************************************************
 // This allocates an ADC context for communication and initializes the ADC
 // converter for use. This is called for each ADC in the system (two per card).
 //*****************************************************************************
@@ -392,8 +468,10 @@ AD7799_Handle ADC_AllocConverter(SPI_Handle spiHandle, uint32_t gpioCSIndex)
 
         if ((g_sys.adcID = AD7799_Init(handle)) == 0)
         {
-            System_printf("AD7799_Init(2) failed\n");
-            //SetLastError(XSYSERR_ADC_INIT);
+            /* Failed to initialize, delete the AD7799 object */
+            AD7799_delete(handle);
+
+            handle = NULL;
         }
         else
         {
@@ -416,17 +494,20 @@ AD7799_Handle ADC_AllocConverter(SPI_Handle spiHandle, uint32_t gpioCSIndex)
 //
 //*****************************************************************************
 
-uint32_t ADC_ReadChannel(AD7799_Handle handle, uint32_t channel)
+uint32_t ADC_ReadChannel(uint32_t channel)
 {
     uint32_t i;
     uint32_t data = ADC_ERROR;
     uint8_t status = 0;
+    AD7799_Handle handle;
+
+    handle = g_adcConverter[channel/2].handle;
 
     if (!handle)
         return ADC_ERROR;
 
     /* Select ADC Channel-1 */
-    AD7799_SetChannel(handle, channel);
+    AD7799_SetChannel(handle, channel % 2);
 
     /* Set the channel mode to start the single conversion */
     AD7799_SetMode(handle, AD7799_MODE_SEL(AD7799_MODE_SINGLE) | AD7799_MODE_RATE(10));
@@ -443,7 +524,7 @@ uint32_t ADC_ReadChannel(AD7799_Handle handle, uint32_t channel)
             status = AD7799_ReadStatus(handle);
 
             if (status & AD7799_STAT_ERR)
-                data = 0;   //ADC_ERROR;
+                data = ADC_ERROR;
 
             break;
         }
@@ -455,30 +536,135 @@ uint32_t ADC_ReadChannel(AD7799_Handle handle, uint32_t channel)
 }
 
 //*****************************************************************************
-// HWI Callback function for front panel push button interrupts.
+// This function takes and ADC value and converts it to UV-C level in
+// milliwatts per centimeter squared (mW/cm2)
 //*****************************************************************************
 
-void gpioButtonHwi(unsigned int index)
+float ADC_to_UVPower(uint32_t adc)
 {
-    uint32_t mask;
-    CommandMessage msg;
+    float power;
 
-    /* GPIO pin interrupt occurred, read button state */
-    mask = GPIO_read(index);
+    if (adc < 0xFF)
+        adc = 0;
 
-    GPIO_clearInt(index);
+    power = (float)adc / 6323.07f;
 
-    /* Disable interrupt for now, the command task will
-     * re-enable this after it processes the button press
-     * message and debounces the button press.
-     */
-    GPIO_disableInt(index);
+    return power;
+}
 
-    msg.command  = BUTTONPRESS;
-    msg.ui32Data = index;
-    msg.ui32Mask = mask;
+//*****************************************************************************
+// Create and Initialize RTD Channels. Each card contains two RTD converters
+// with separate chip selects.
+//*****************************************************************************
 
-    Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
+bool RTD_Initialize(void)
+{
+    size_t i;
+    bool success = TRUE;
+
+    /* Clear ADC channels found count */
+    g_sys.rtdNumChannels = 0;
+
+    /* Zero out ADC data array */
+    for (i=0; i < RTD_MAX_CHANNELS; i++)
+    {
+        g_sys.rtdData[i]  = RTD_ERROR;
+        g_sys.rtdTempC[i] = 0.0f;
+    }
+
+    /* Attempt to allocate and initialize each ADC converter */
+    for (i=0; i < RTD_NUM_CHANNELS; i++)
+    {
+        /* Attempt to allocate and initialize the ADC */
+        g_rtdConverter[i].handle = RTD_AllocConverter(g_sys.spi2, g_rtdConverter[i].chipsel);
+
+        /* ADC found, increment the channel count */
+        if (g_rtdConverter[i].handle == NULL)
+        {
+            System_printf("RTD_Initialize() failed\n");
+            //SetLastError(XSYSERR_ADC_INIT);
+            success = FALSE;
+            break;
+        }
+
+        ++g_sys.rtdNumChannels;
+    }
+
+    return success;
+}
+
+//*****************************************************************************
+// This allocates an RTD context for communication and initializes the RTD
+// converter for use.
+//*****************************************************************************
+
+MAX31865_Handle RTD_AllocConverter(SPI_Handle spiHandle, uint32_t gpioCSIndex)
+{
+    MAX31865_Handle handle;
+
+    /* Initialize the RTD device object parameters */
+    MAX31865_Params params;
+    MAX31865_Params_init(&params);
+
+    /* Set conversion to 4-wire mode with 60Hz filtering */
+    uint8_t configReg = MAX31865_CFG_MODE(1) | MAX31865_CFG_3WIRE_RTD(0) | MAX31865_CFG_50HZ(0);
+
+    params.charge_time_delay     = MAX31865_CHARGE_TIME;
+    params.conversion_time_delay = MAX31865_CONVERSION_TIME;
+    params.rtd                   = 100;
+    params.rref                  = 400;
+    params.lowFaultThreshold     = 0;
+    params.highFaultThreshold    = 0xFFFF;
+    params.configReg             = configReg;
+    params.chipselect            = gpioCSIndex;
+
+    /* Create the I/O expander object on SPI-2 for this card */
+    if ((handle = MAX31865_create(spiHandle, &params)) != NULL)
+    {
+        /* Attempt to initialize the card */
+        if (!MAX31865_init(handle))
+        {
+            /* Failed to initialize, delete the object handle created */
+            MAX31865_delete(handle);
+
+            handle = NULL;
+        }
+    }
+
+    return handle;
+}
+
+//*****************************************************************************
+//
+//
+//*****************************************************************************
+
+uint8_t RTD_ReadChannel(uint32_t channel, uint32_t* adc, float* tempC)
+{
+    uint16_t data;
+    uint8_t status = MAX31865_ERR_UNDEFINED;
+
+    if (channel >= RTD_NUM_CHANNELS)
+        return status;
+
+    MAX31865_Handle handle = g_rtdConverter[channel].handle;
+
+    if (handle)
+    {
+        /* Read the raw ADC value from the RTD */
+        status = MAX31865_readADC(handle, &data);
+
+        if (status == MAX31865_ERR_SUCCESS)
+        {
+            /* Return the raw ADC value */
+            *adc = data;
+
+            /* Return ADC value converted to Celcius */
+            *tempC = MAX31865_ADC_to_Celcius(handle, data);
+        }
+    }
+
+    return status;
 }
 
 //*****************************************************************************
@@ -488,7 +674,8 @@ void gpioButtonHwi(unsigned int index)
 
 Void SampleTaskFxn(UArg arg0, UArg arg1)
 {
-    size_t i;
+    size_t channel;
+    uint32_t adc;
 
     while(1)
     {
@@ -498,16 +685,47 @@ Void SampleTaskFxn(UArg arg0, UArg arg1)
         /* Read the current date/time stamp from the RTC */
         MCP79410_GetTime(g_sys.handleRTC, &g_sys.timeRTC);
 
-        /* If the ADC's were found and active, then poll each ADC for data */
-        if (g_sys.adcID)
-        {
-            size_t channel = 0;
+        /*
+         *  Read ADC - If ADC cards were found, then read the data
+         */
 
-            for (i=0; i < ADC_NUM_CONVERTERS; i++)
+        if ((g_sys.adcNumChannels > 0) && (g_sys.adcID != 0))
+        {
+            for (channel=0; channel < ADC_NUM_CHANNELS; channel++)
             {
-                /* Read two channels of data from a each converter on card */
-                g_sys.adcData[channel++] = ADC_ReadChannel(g_adcConverter[i].handle, 0);
-                g_sys.adcData[channel++] = ADC_ReadChannel(g_adcConverter[i].handle, 1);
+                adc = ADC_ReadChannel(channel);
+
+                g_sys.adcData[channel] = adc;
+
+                if (adc != ADC_ERROR)
+                    g_sys.adcUV[channel] = ADC_to_UVPower(adc);
+                else
+                    g_sys.adcUV[channel] = 0.0f;
+            }
+        }
+
+        /*
+         *  Read RTD - If RTD cards were found, then read the data
+         */
+
+        if (g_sys.rtdNumChannels > 0)
+        {
+            for (channel=0; channel < 1; channel++)         /*RTD_NUM_CHANNELS*/
+            {
+                uint8_t status;
+                float tempC;
+
+                status = RTD_ReadChannel(channel, &adc, &tempC);
+
+                if (status == MAX31865_ERR_SUCCESS)
+                {
+                    g_sys.rtdData[channel]  = adc;
+                    g_sys.rtdTempC[channel] = tempC;
+                }
+                else
+                {
+                    g_sys.rtdData[channel]  = RTD_ERROR;
+                }
             }
         }
 
@@ -566,8 +784,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
         {
             uint32_t index = msgCmd.ui32Data;
 
-            ScreenNum screen;
-
             if (IsScreenSave())
             {
                 DisplayRefresh();
@@ -583,34 +799,35 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
                 continue;
             }
 
+            ScreenNum screen = DisplayGetScreen();
+
             switch(msgCmd.ui32Data)
             {
-            case Board_BTN_SW1:
-                screen = DisplayGetScreen();
+            case Board_BTN_UP :
+                break;
+
+            case Board_BTN_DN:
+                break;
+
+            case Board_BTN_NXT:
                 if (++screen > SCREEN_LAST)
                     screen = SCREEN_FIRST;
                 DisplaySetScreen(screen);
                 break;
 
-            case Board_BTN_SW2:
-                if (DisplayGetScreen() == SCREEN_FIRST)
+            case Board_BTN_PRV:
+                if (screen == SCREEN_FIRST)
                     screen = SCREEN_LAST;
                 else
                     --screen;
                 DisplaySetScreen(screen);
                 break;
 
-            case Board_BTN_SW3:
-                break;
-
-            case Board_BTN_SW4:
-                break;
-
-            case Board_BTN_SW5:
+            case Board_BTN_OK:
                 //GPIO_toggle(Board_SLOT2_RELAY1);
                 break;
 
-            case Board_BTN_SW6:
+            case Board_BTN_ESC:
                // GPIO_toggle(Board_SLOT2_RELAY2);
                 break;
 
@@ -628,6 +845,33 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
             GPIO_enableInt(index);
         }
     }
+}
+
+//*****************************************************************************
+// HWI Callback function for front panel push button interrupts.
+//*****************************************************************************
+
+void gpioButtonHwi(unsigned int index)
+{
+    uint32_t mask;
+    CommandMessage msg;
+
+    /* GPIO pin interrupt occurred, read button state */
+    mask = GPIO_read(index);
+
+    GPIO_clearInt(index);
+
+    /* Disable interrupt for now, the command task will
+     * re-enable this after it processes the button press
+     * message and debounces the button press.
+     */
+    GPIO_disableInt(index);
+
+    msg.command  = BUTTONPRESS;
+    msg.ui32Data = index;
+    msg.ui32Mask = mask;
+
+    Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
 }
 
 // End-Of-File

@@ -30,11 +30,6 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*
- *    ======== tcpEcho.c ========
- *    Contains BSD sockets code.
- */
-
 /* XDCtools Header files */
 #include <xdc/std.h>
 #include <xdc/cfg/global.h>
@@ -77,10 +72,10 @@
 #include "Board.h"
 #include "PMX42.h"
 #include "Utils.h"
-#include "AD7793.h"
 #include "DisplayTask.h"
 
-#define UV_CHANNELS     4
+#define X_TEMPERATURE   60
+#define X_BARGRAPH      95
 
 /* Global context for drawing */
 extern tContext g_context;
@@ -257,6 +252,7 @@ void DrawUV(void)
     //float v;
     float level;
     float power;
+    float temp;
     //float step;
     float fullscale;
     float percentage;
@@ -289,22 +285,27 @@ void DrawUV(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    len = sprintf(buf, "mW/cm2");
+    len = sprintf(buf, "UV-C");
     GrStringDraw(&g_context, buf, -1, x+width+7, y+1, 0);
 
-    len = sprintf(buf, "UV-C");
-    width = GrStringWidthGet(&g_context, buf, len);
-    GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y+1, 0);
+    //len = sprintf(buf, "UV-C");
+    //width = GrStringWidthGet(&g_context, buf, len);
+    //GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y+1, 0);
 
-    x = 1;
+    len = sprintf(buf, "TempF");
+    width = GrStringWidthGet(&g_context, buf, len);
+    GrStringDraw(&g_context, buf, -1, X_TEMPERATURE, y+1, 0);
+
     y += spacing + height + 5;
 
     /* Setup the font and get it's height */
     GrContextFontSet(&g_context,  g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
-    for (i=0; i < UV_CHANNELS; i++)
+    for (i=0; i < g_sys.adcNumChannels; i++)
     {
+        x = 1;
+
         if (g_sys.adcData[i] == ADC_ERROR)
         {
             percentage = 0.0f;
@@ -351,33 +352,52 @@ void DrawUV(void)
 
         GrStringDraw(&g_context, buf, -1, x, y, 0);
 
-        rect.i16XMin = x + 60;
+        /* Now draw the temperature */
+
+        if (g_sys.rtdNumChannels > 0)
+        {
+            x = X_TEMPERATURE;
+
+            if (g_sys.rtdData[i] == RTD_ERROR)
+            {
+                len = sprintf(buf, "ERR");
+            }
+            else
+            {
+                temp = CELCIUS_TO_FAHRENHEIT(g_sys.rtdTempC[i]);
+
+                len = sprintf(buf, "%.1f", temp);
+            }
+
+            GrStringDraw(&g_context, buf, -1, x, y, 0);
+        }
+
+
+        rect.i16XMin = X_BARGRAPH;
         rect.i16YMin = y;
         rect.i16XMax = SCREEN_WIDTH - 1;
         rect.i16YMax = (height - 2) + rect.i16YMin;
 
         PlotUVBarGraph(rect, percentage);
 
+
         y += height + spacing;
     }
 
-    //len = sprintf(buf, "%d:%02d:%02d %d/%d/%d",
-    //        g_sys.timeRTC.hour, g_sys.timeRTC.min, g_sys.timeRTC.sec,
-    //        g_sys.timeRTC.month, g_sys.timeRTC.date, g_sys.timeRTC.year + 2000);
+    /* Draw the date and time at the bottom of the screen */
+
+    y = 64 - (height + 1);
 
     len = sprintf(buf, "%d:%02d:%02d",
             g_sys.timeRTC.hour, g_sys.timeRTC.min, g_sys.timeRTC.sec);
-    //width = GrStringWidthGet(&g_context, buf, len);
-    //GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y+1, 0);
-    GrStringDraw(&g_context, buf, -1, 62, y+1, 0);
+    width = GrStringWidthGet(&g_context, buf, len);
+    GrStringDraw(&g_context, buf, -1, 1, y, 0);
     //DrawInverseText(0, y, buf, len);
-#if 0
+
     len = sprintf(buf, "%02d/%02d/%d",
             g_sys.timeRTC.month, g_sys.timeRTC.date, g_sys.timeRTC.year + 2000);
     width = GrStringWidthGet(&g_context, buf, len);
-    //GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y+1, 0);
-    GrStringDraw(&g_context, buf, -1, 62, y+1, 0);
-#endif
+    GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y, 0);
 }
 
 //*****************************************************************************

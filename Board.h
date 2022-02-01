@@ -57,12 +57,12 @@ extern "C" {
 #define Board_LED_OFF               PMX42_LED_OFF
 #define Board_LED_ACT               PMX42_LED_ACT
 #define Board_LED_ALM               PMX42_LED_ALM
-#define Board_BTN_SW1               PMX42_BTN_SW1
-#define Board_BTN_SW2               PMX42_BTN_SW2
-#define Board_BTN_SW3               PMX42_BTN_SW3
-#define Board_BTN_SW4               PMX42_BTN_SW4
-#define Board_BTN_SW5               PMX42_BTN_SW5
-#define Board_BTN_SW6               PMX42_BTN_SW6
+#define Board_BTN_UP                PMX42_BTN_SW1
+#define Board_BTN_DN                PMX42_BTN_SW2
+#define Board_BTN_NXT               PMX42_BTN_SW3
+#define Board_BTN_PRV               PMX42_BTN_SW4
+#define Board_BTN_OK                PMX42_BTN_SW5
+#define Board_BTN_ESC               PMX42_BTN_SW6
 
 /* Each slot has a dedicated I2C port */
 #define Board_I2C_SLOT1             PMX42_I2C0
@@ -111,6 +111,11 @@ extern "C" {
 #define Board_SLOT1_AD7793_CS2		PMX42_PM4_T4CCP0
 #define Board_SLOT2_AD7793_CS1      PMX42_PM2_SLOT2_SS
 #define Board_SLOT2_AD7793_CS2      PMX42_PF1_M0PWM1
+
+#define Board_SLOT1_MAX31865_CS1    PMX42_PD2_SLOT1_SS
+#define Board_SLOT1_MAX31865_CS2    PMX42_PM4_T4CCP0
+#define Board_SLOT2_MAX31865_CS1    PMX42_PM2_SLOT2_SS
+#define Board_SLOT2_MAX31865_CS2    PMX42_PF1_M0PWM1
 
 #define Board_SLOT2_RELAY1			PMX42_PF1_M0PWM1
 #define Board_SLOT2_RELAY2			PMX42_PF2_M0PWM2

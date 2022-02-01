@@ -320,7 +320,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         int textlen = sizeof(PMX42_STATE_MSG);
 
         stateMsg.length       = textlen;
-        stateMsg.adc_channels = g_sys.adcChannels;
+        stateMsg.adc_channels = g_sys.adcNumChannels;
         stateMsg.adc_id       = g_sys.adcID;
 
         /* Copy the track state info */
