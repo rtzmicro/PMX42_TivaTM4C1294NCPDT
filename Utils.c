@@ -417,6 +417,7 @@ void ConfigInitDefaults(SYSCONFIG* p)
     p->build            = FIRMWARE_BUILD;
     p->debug            = 0;                    /* debug mode 0=off             */
     p->screensave_time  = SCREEN_SAVER_TIME;
+    p->temp_format      = TEMP_FAHRENHEIT;
 }
 
 //*****************************************************************************

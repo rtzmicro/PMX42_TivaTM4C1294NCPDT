@@ -66,7 +66,7 @@
 #define CELCIUS_TO_FAHRENHEIT(c)    ((float)c * 1.8f + 32.0f)
 
 /* Simple macro to convert to Kelvin units */
-#define CELCIUS_TO_KELVIN(c)        ((float)cc + 273.15f)
+#define CELCIUS_TO_KELVIN(c)        ((float)c + 273.15f)
 
 /******************************************************************************/
 /* MAX31865 RTD-to-Digital Converter                                          */

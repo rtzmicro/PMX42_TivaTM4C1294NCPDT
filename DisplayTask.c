@@ -74,7 +74,8 @@
 #include "Utils.h"
 #include "DisplayTask.h"
 
-#define X_TEMPERATURE   60
+#define X_TEMPERATURE   23
+#define X_UVLEVEL       60
 #define X_BARGRAPH      95
 
 /* Global context for drawing */
@@ -252,7 +253,6 @@ void DrawUV(void)
     //float v;
     float level;
     float power;
-    float temp;
     //float step;
     float fullscale;
     float percentage;
@@ -264,6 +264,8 @@ void DrawUV(void)
     /* Top line fixed system font in inverse */
     GrContextFontSet(&g_context, g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context) - 1;
+
+    /* Draw the channel heading in reverse */
 
     len = sprintf(buf, "CH");
     width = GrStringWidthGet(&g_context, buf, len);
@@ -285,33 +287,69 @@ void DrawUV(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    len = sprintf(buf, "UV-C");
-    GrStringDraw(&g_context, buf, -1, x+width+7, y+1, 0);
+    /* Draw the temperature heading */
+    if (g_cfg.temp_format == TEMP_FAHRENHEIT)
+        len = sprintf(buf, "DegF");
+    else if (g_cfg.temp_format == TEMP_KELVIN)
+        len = sprintf(buf, "DegK");
+    else
+        len = sprintf(buf, "DegC");
 
-    //len = sprintf(buf, "UV-C");
-    //width = GrStringWidthGet(&g_context, buf, len);
-    //GrStringDraw(&g_context, buf, -1, SCREEN_WIDTH-(width+1), y+1, 0);
-
-    len = sprintf(buf, "TempF");
-    width = GrStringWidthGet(&g_context, buf, len);
     GrStringDraw(&g_context, buf, -1, X_TEMPERATURE, y+1, 0);
 
-    y += spacing + height + 5;
+    /* Draw the UV level heading */
+    len = sprintf(buf, "UV-C");
+    width = GrStringWidthGet(&g_context, buf, len);
+    GrStringDraw(&g_context, buf, -1, X_UVLEVEL, y+1, 0);
 
     /* Setup the font and get it's height */
     GrContextFontSet(&g_context,  g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
+    y += spacing + height + 5;
+
     for (i=0; i < g_sys.adcNumChannels; i++)
     {
-        x = 1;
+        /* Draw the channel number */
+
+        x = 3;
+        sprintf(buf, "%d:", i+1);
+        GrStringDraw(&g_context, buf, -1, x, y, 0);
+
+        /* Draw the current temperature */
+
+        x = X_TEMPERATURE;
+
+        if (g_sys.rtdData[i] == RTD_ERROR)
+            sprintf(buf, "ERR");
+        else
+        {
+            if (g_cfg.temp_format == TEMP_FAHRENHEIT)
+            {
+                sprintf(buf, "%.1f", CELCIUS_TO_FAHRENHEIT(g_sys.rtdTempC[i]));
+            }
+            else if (g_cfg.temp_format == TEMP_KELVIN)
+            {
+                sprintf(buf, "%.1f", CELCIUS_TO_KELVIN(g_sys.rtdTempC[i]));
+            }
+            else
+            {
+                sprintf(buf, "%.1f", g_sys.rtdTempC[i]);
+            }
+        }
+
+        GrStringDraw(&g_context, buf, -1, x, y, 0);
+
+        /*
+         * Display the UV power level
+         */
+
+        x = X_UVLEVEL;
 
         if (g_sys.adcData[i] == ADC_ERROR)
         {
             percentage = 0.0f;
-
-            /* display error msg */
-            sprintf(buf, "%d: ERR", i+1);
+            sprintf(buf, "ERR");
         }
         else
         {
@@ -328,23 +366,19 @@ void DrawUV(void)
 #if 0
             /* Calculate the voltage per ADC step */
             step = ADC_VREF / fullscale;
-
             /* Calculate the actual voltage based on the ADC step value */
             v = step * level;
-
             /* sensor Vout = 0.71 x UV-C power in mW/cm2 */
             power = v / 0.71f;
 #endif
             power = level / 6323.07f;
 
             if (power < 1.0f)
-                sprintf(buf, "%d: %.3f", i+1, power);
+                sprintf(buf, "%.3f", power);
             else if (power > 10.0f)
-                sprintf(buf, "%d: %.1f", i+1, power);
+                sprintf(buf, "%.1f", power);
             else
-                sprintf(buf, "%d: %.2f", i+1, power);
-
-            //sprintf(buf, "%d: %6x", i, g_sys.adcLevel[i]);
+                sprintf(buf, "%.2f", power);
 
             //float percentage = (power / 7.0f) * 100.0f;
             percentage = (level / fullscale) * 100.0f;
@@ -352,26 +386,9 @@ void DrawUV(void)
 
         GrStringDraw(&g_context, buf, -1, x, y, 0);
 
-        /* Now draw the temperature */
-
-        if (g_sys.rtdNumChannels > 0)
-        {
-            x = X_TEMPERATURE;
-
-            if (g_sys.rtdData[i] == RTD_ERROR)
-            {
-                len = sprintf(buf, "ERR");
-            }
-            else
-            {
-                temp = CELCIUS_TO_FAHRENHEIT(g_sys.rtdTempC[i]);
-
-                len = sprintf(buf, "%.1f", temp);
-            }
-
-            GrStringDraw(&g_context, buf, -1, x, y, 0);
-        }
-
+        /*
+         * Display the power level bar graph
+         */
 
         rect.i16XMin = X_BARGRAPH;
         rect.i16YMin = y;
@@ -379,7 +396,6 @@ void DrawUV(void)
         rect.i16YMax = (height - 2) + rect.i16YMin;
 
         PlotUVBarGraph(rect, percentage);
-
 
         y += height + spacing;
     }

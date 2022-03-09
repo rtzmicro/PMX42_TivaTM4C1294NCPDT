@@ -710,7 +710,7 @@ Void SampleTaskFxn(UArg arg0, UArg arg1)
 
         if (g_sys.rtdNumChannels > 0)
         {
-            for (channel=0; channel < 1; channel++)         /*RTD_NUM_CHANNELS*/
+            for (channel=0; channel < RTD_NUM_CHANNELS; channel++)
             {
                 uint8_t status;
                 float tempC;
@@ -804,6 +804,17 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
             switch(msgCmd.ui32Data)
             {
             case Board_BTN_UP :
+                if (screen == SCREEN_UV)
+                {
+                    TempFormat format;
+
+                    format = (TempFormat)(g_cfg.temp_format + 1);
+
+                    if (format >= TEMP_FORMAT_LAST)
+                        format = 0;
+
+                    g_cfg.temp_format = (uint8_t)format;
+                }
                 break;
 
             case Board_BTN_DN:

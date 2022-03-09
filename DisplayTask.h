@@ -14,11 +14,17 @@
 
 /*** CONSTANTS AND CONFIGURATION *******************************************/
 
+typedef enum TempFormat {
+    TEMP_FAHRENHEIT=0,
+    TEMP_CELCIUS,
+    TEMP_KELVIN,
+    TEMP_FORMAT_LAST
+} TempFormat;
+
 typedef enum ScreenNum {
     SCREEN_ABOUT=0,
     SCREEN_INFO,
     SCREEN_UV,
-
 } ScreenNum;
 
 #define SCREEN_FIRST        SCREEN_ABOUT

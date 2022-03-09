@@ -38,7 +38,7 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        6           /* firmware revision */
+#define FIRMWARE_REV        7           /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
@@ -130,6 +130,7 @@ typedef struct _SYSPARMS
     /*** GLOBAL PARAMETERS ***/
     long        debug;                     	/* debug level */
     uint32_t    screensave_time;
+    uint8_t     temp_format;
 } SYSCONFIG;
 
 //*****************************************************************************
