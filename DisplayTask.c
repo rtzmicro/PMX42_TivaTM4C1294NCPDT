@@ -289,11 +289,11 @@ void DrawUV(void)
 
     /* Draw the temperature heading */
     if (g_cfg.temp_format == TEMP_FAHRENHEIT)
-        len = sprintf(buf, "DegF");
+        len = sprintf(buf, "degF");
     else if (g_cfg.temp_format == TEMP_KELVIN)
-        len = sprintf(buf, "DegK");
+        len = sprintf(buf, "degK");
     else
-        len = sprintf(buf, "DegC");
+        len = sprintf(buf, "degC");
 
     GrStringDraw(&g_context, buf, -1, X_TEMPERATURE, y+1, 0);
 
