@@ -38,7 +38,7 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        7           /* firmware revision */
+#define FIRMWARE_REV        8           /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
@@ -96,26 +96,26 @@ typedef struct _RTD_CHANNEL {
 
 typedef struct _SYSDATA
 {
-    uint8_t         ui8SerialNumber[16];        /* 128-bit serial number      */
-    uint8_t         ui8MAC[6];                  /* 48-bit MAC from EPROM      */
-    char            ipAddr[32];                 /* IP address from DHCP       */
+    uint8_t         ui8SerialNumber[16];    /* 128-bit serial number      */
+    uint8_t         ui8MAC[6];              /* 48-bit MAC from EPROM      */
+    char            ipAddr[32];             /* IP address from DHCP       */
     /* global runtime data */
-    I2C_Handle      i2c0;                       /* I2C0 MAC/Serial# EPROM     */
+    I2C_Handle      i2c0;                   /* I2C0 MAC/Serial# EPROM     */
     I2C_Handle      i2c3;
-    SPI_Handle      spi2;                       /* SPI handle for slots 1 & 2 */
-    SPI_Handle      spi3;                       /* SPI handle for slots 3 & 4 */
+    SPI_Handle      spi2;                   /* SPI handle for slots 1 & 2 */
+    SPI_Handle      spi3;                   /* SPI handle for slots 3 & 4 */
     MCP79410_Handle handleRTC;
-    /* AD7799 ADC data */
-    uint8_t         adcID;                      /* chip ID, 16 or 24 bit type */
-    uint32_t        adcNumChannels;             /* num of ADC channels active */
-    uint32_t        adcData[ADC_MAX_CHANNELS];  /* the raw ADC value          */
-    float           adcUV[ADC_MAX_CHANNELS];    /* UV power level mW/cm2      */
-    /* MAX31865 RTD data */
-    uint32_t        rtdNumChannels;             /* num of ADC channels active */
-    uint32_t        rtdData[RTD_MAX_CHANNELS];  /* the raw ADC value          */
-    float           rtdTempC[RTD_MAX_CHANNELS]; /* temperature Celcius value  */
     /* RTC time/date data */
     RTCC_Struct     timeRTC;
+    /* AD7799 ADC data */
+    uint8_t         adcID;                  /* chip ID, 16 or 24 bit type */
+    uint32_t        adcNumChannels;         /* num of ADC channels active */
+    uint32_t        uvcADC[16];             /* the raw ADC value          */
+    float           uvcPower[16];           /* the UV-C value in mW/cm2   */
+    /* MAX31865 RTD data */
+    uint32_t        rtdNumChannels;         /* num of ADC channels active */
+    uint32_t        rtdADC[16];             /* the raw ADC value          */
+    float           rtdTempC[16];           /* converted to Celcius value */
 } SYSDATA;
 
 //*****************************************************************************

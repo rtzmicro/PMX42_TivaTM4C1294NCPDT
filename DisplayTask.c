@@ -320,7 +320,7 @@ void DrawUV(void)
 
         x = X_TEMPERATURE;
 
-        if (g_sys.rtdData[i] == RTD_ERROR)
+        if (g_sys.rtdADC[i] == RTD_ERROR)
             sprintf(buf, "ERR");
         else
         {
@@ -346,7 +346,7 @@ void DrawUV(void)
 
         x = X_UVLEVEL;
 
-        if (g_sys.adcData[i] == ADC_ERROR)
+        if (g_sys.uvcADC[i] == ADC_ERROR)
         {
             percentage = 0.0f;
             sprintf(buf, "ERR");
@@ -354,7 +354,7 @@ void DrawUV(void)
         else
         {
             /* get the ADC sensor level */
-            adc = g_sys.adcData[i];
+            adc = g_sys.uvcADC[i];
 
             if (adc < 0xFF)
                 adc = 0;

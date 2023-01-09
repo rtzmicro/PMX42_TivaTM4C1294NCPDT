@@ -421,8 +421,8 @@ bool ADC_Initialize(void)
     /* Zero out DAC level array */
     for (i=0; i < ADC_MAX_CHANNELS; i++)
     {
-        g_sys.adcData[i] = ADC_ERROR;
-        g_sys.adcUV[i] = 0.0f;
+        g_sys.uvcADC[i] = ADC_ERROR;
+        g_sys.uvcPower[i] = 0.0f;
     }
 
     /* Assume 16-bit ADC by default */
@@ -568,7 +568,7 @@ bool RTD_Initialize(void)
     /* Zero out ADC data array */
     for (i=0; i < RTD_MAX_CHANNELS; i++)
     {
-        g_sys.rtdData[i]  = RTD_ERROR;
+        g_sys.rtdADC[i]  = RTD_ERROR;
         g_sys.rtdTempC[i] = 0.0f;
     }
 
@@ -695,12 +695,16 @@ Void SampleTaskFxn(UArg arg0, UArg arg1)
             {
                 adc = ADC_ReadChannel(channel);
 
-                g_sys.adcData[channel] = adc;
-
                 if (adc != ADC_ERROR)
-                    g_sys.adcUV[channel] = ADC_to_UVPower(adc);
+                {
+                    g_sys.uvcADC[channel] = adc;
+                    g_sys.uvcPower[channel] = ADC_to_UVPower(adc);
+                }
                 else
-                    g_sys.adcUV[channel] = 0.0f;
+                {
+                    g_sys.uvcADC[channel] = ADC_ERROR;
+                    g_sys.uvcPower[channel] = 0.0f;
+                }
             }
         }
 
@@ -719,12 +723,12 @@ Void SampleTaskFxn(UArg arg0, UArg arg1)
 
                 if (status == MAX31865_ERR_SUCCESS)
                 {
-                    g_sys.rtdData[channel]  = adc;
+                    g_sys.rtdADC[channel]  = adc;
                     g_sys.rtdTempC[channel] = tempC;
                 }
                 else
                 {
-                    g_sys.rtdData[channel]  = RTD_ERROR;
+                    g_sys.rtdADC[channel]  = RTD_ERROR;
                 }
             }
         }

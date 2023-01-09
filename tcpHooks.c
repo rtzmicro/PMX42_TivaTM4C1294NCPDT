@@ -61,6 +61,7 @@
 #include "Board.h"
 #include "PMX42.h"
 #include "PMX42TCP.h"
+#include "XMODTCP.h"
 
 #define NUMTCPWORKERS       2
 
