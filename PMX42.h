@@ -137,12 +137,12 @@ typedef struct _SYSPARMS
 // Meter Command Message Structure
 //*****************************************************************************
 
-typedef enum CommandType{
+typedef enum ButtonEventType{
     BUTTONPRESS,
 } CommandType;
 
-typedef struct CommandMessage{
-    CommandType		command;
+typedef struct ButtonMessage{
+    ButtonEventType		command;
     uint32_t 		ui32Data;
     uint32_t        ui32Mask;
 } CommandMessage;

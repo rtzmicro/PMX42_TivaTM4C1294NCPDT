@@ -98,7 +98,7 @@ tContext g_context;
 
 /* Handles created dynamically */
 Mailbox_Handle g_mailboxDisplay = NULL;
-Mailbox_Handle mailboxCommand = NULL;
+Mailbox_Handle mailboxButton = NULL;
 
 //*****************************************************************************
 // Global ADC Card Data
@@ -195,8 +195,8 @@ int main(void)
     /* Create command task mailbox */
     Error_init(&eb);
     Mailbox_Params_init(&mboxParams);
-    mailboxCommand = Mailbox_create(sizeof(CommandMessage), 10, &mboxParams, &eb);
-    if (mailboxCommand == NULL) {
+    mailboxButton = Mailbox_create(sizeof(ButtonMessage), 10, &mboxParams, &eb);
+    if (mailboxButton == NULL) {
         System_abort("Mailbox create failed\nAborting...");
     }
 
@@ -750,7 +750,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 {
     Error_Block eb;
 	Task_Params taskParams;
-    CommandMessage msgCmd;
+    ButtonMessage msgCmd;
 
     /* Open the peripherals we plan to use */
     Init_Peripherals();
@@ -779,7 +779,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     while (true)
     {
     	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(mailboxCommand, &msgCmd, BIOS_WAIT_FOREVER))
+        if (!Mailbox_pend(mailboxButton, &msgCmd, BIOS_WAIT_FOREVER))
         {
             continue;
         }
@@ -869,7 +869,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 void gpioButtonHwi(unsigned int index)
 {
     uint32_t mask;
-    CommandMessage msg;
+    ButtonMessage msg;
 
     /* GPIO pin interrupt occurred, read button state */
     mask = GPIO_read(index);
@@ -886,7 +886,7 @@ void gpioButtonHwi(unsigned int index)
     msg.ui32Data = index;
     msg.ui32Mask = mask;
 
-    Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
+    Mailbox_post(mailboxButton, &msg, BIOS_NO_WAIT);
 }
 
 // End-Of-File
